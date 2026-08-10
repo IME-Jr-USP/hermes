@@ -12,11 +12,10 @@ client = chromadb.PersistentClient(path="./chroma_db")
 
 #client = chromadb.Client() # para caso não queira salvar o banco de dados no seu pc
 
-banco_disciplinas = client.get_or_create_collection(name="banco-de-disciplinas")
-
 bancos_dados = [banco.name for banco in client.list_collections()] # pega todos os bancos de dados do seu pc e coloca o nome de cada na lista bancos_dados
 
 if not "banco-de-disciplinas" in bancos_dados: # testa se tem o banco de dados no seu pc, se não tiver cria um.
+    banco_disciplinas = client.get_or_create_collection(name="banco-de-disciplinas")
     for disciplina in disciplinas_instituto:
         dados = disciplina.obter_dados()
         banco_disciplinas.add(
