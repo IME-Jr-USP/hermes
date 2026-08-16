@@ -1,5 +1,3 @@
-import datetime
-import textwrap
 import time
 
 import chromadb

@@ -1,10 +1,5 @@
 import chromadb
-
-from db import (
-    atualizar_banco_disciplinas,
-    obter_banco_disciplinas,
-    obter_disciplinas_jupiterweb,
-)
+from jupiterweb import Disciplina
 
 
 def formatar_disciplinas(disciplinas_desformatadas: dict) -> str:
@@ -19,7 +14,7 @@ def formatar_disciplinas(disciplinas_desformatadas: dict) -> str:
 
     return resposta
 
-def buscar_disciplinas(collection: chromadb.Collection, palavra_chave: str, limite: int = 5):
+def buscar_disciplinas(collection: chromadb.Collection, palavra_chave: str, limite: int = 5) -> list[Disciplina]:
     """
     Dado uma palavra-chave, faz uma busca semântica no banco de dados vetorial
     e traz as x (onde x = limite) disciplinas mais próximas da palavra-chave.
