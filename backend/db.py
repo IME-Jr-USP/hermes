@@ -77,22 +77,14 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
         "avaliacao_metodo": dados.get("instrumentos e criterios de avaliacao", {}).get("metodo de avaliacao", ""),
         "avaliacao_criterio": dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
         "avaliacao_norma_recup": dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
-        "metodos_ensino": dados.get("metodos de ensino", ""),
-        "atividades_extensao": dados.get("atividades de extensao", ""),
-        "ods_onu": dados.get("objetivos de desenvolvimento sustentavel (onu)", ""),
-        "viagem_didatica": dados.get("viagem didatica", ""),
-        "docentes_responsaveis": [str(i) for i in dados.get("docente(s) responsavel(eis)").splitlines() if i],
+        "docentes_responsaveis": [
+            str(i).strip() for i in dados.get("docente(s) responsavel(eis)", "").splitlines() if i
+        ],
         "oferecida": disciplina.possui_oferecimento(),
         "ultima_atualizacao": time.time(),
     }
 
-    # converter seções numéricas
-    for i in ["creditos_aula", "creditos_trabalho", "carga_horaria_total"]:
-        metadata[i] = str(metadata[i]).split()[0]
-        if metadata[i].isnumeric():
-            metadata[i] = int(metadata[i])
-
-    # unir seções de bibliografia
+    # seção unificada de bibliografia
     metadata["bibliografia"] = ""
     if "bibliografia" in dados:
         metadata["bibliografia"] += dados["bibliografia"] + "\n"
@@ -101,19 +93,37 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     if "bibliografia complementar" in dados:
         metadata["bibliografia"] += "bibliografia complementar:\n" + dados["bibliografia complementar"] + "\n"
 
+    # converter seções numéricas
+    for i in ["creditos_aula", "creditos_trabalho", "carga_horaria_total"]:
+        metadata[i] = str(metadata[i]).split()[0]
+        if metadata[i].isnumeric():
+            metadata[i] = int(metadata[i])
+
+    # converter seções de tipo inválido
+    for k, v in metadata.items():
+        if not (isinstance(v, (int, str, list, float, bool)) or (v is None)):
+            metadata[k] = str(v)
+            logger.warning(
+                "Chave '%s' tem tipo inválido '%s' em metadados da disciplina '%s' (foi convertida para string)",
+                k,
+                type(v),
+                disciplina,
+            )
+
     return metadata
 
 
 def _obter_document_disciplina(disciplina: Disciplina) -> str:
     """Retorna documento da `disciplina` a ser armazenado no banco de dados."""
 
-    return disciplina.obter_dados()["nome"]  # TODO
+    document = disciplina.obter_dados()["nome"]  # TODO
+    return document
 
 
 def _obter_disciplinas_institutos() -> Iterator[tuple[Disciplina, Instituto]]:
     """Retorna pares (`Disciplina`, `Instituto`) com todas as disciplinas encontradas no Jupiterweb."""
 
-    institutos = [jupiterweb.obter_institutos()[3]]  # TODO remover indice
+    institutos = [jupiterweb.obter_institutos()[39]]  # TODO remover indice
     for instituto in institutos:
         for disciplina in instituto.obter_disciplinas():
             if disciplina.encontrada():
@@ -180,7 +190,7 @@ def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3
 if __name__ == "__main__":  # TODO remover
     client = obter_client()
     collection = obter_banco_disciplinas(client)
-    # atualizar_banco_disciplinas(collection)
+    atualizar_banco_disciplinas(collection)
 
     while True:
         query = input(" >>> ")
