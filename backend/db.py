@@ -113,7 +113,7 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
         if isinstance(v, list) and len(v) == 0:
             metadata[k] = ""
             logger.warning(
-                "Chave '%s' era lista vazia em metadatados da disciplina '%s' (foi convertida para string vazia)",
+                "Chave '%s' é lista vazia em metadatados da disciplina '%s' (foi convertida para string vazia)",
                 k,
                 disciplina,
             )
