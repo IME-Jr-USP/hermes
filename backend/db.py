@@ -12,7 +12,7 @@ from constants import (
     DB_COLLECTION_NAME,
     DB_DISTANCE_METRIC,
     DB_PATH,
-    DISCIPLINA_CHAVES_DOCUMENT,
+    DISCIPLINA_DOCUMENT_CHAVES,
     EMBEDDING_DEVICE,
     EMBEDDING_MODEL,
     EMBEDDING_NORMALIZE,
@@ -121,16 +121,24 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     return metadata
 
 
-def _obter_document_disciplina(disciplina: Disciplina) -> str:
+def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> str:
     """Retorna documento da `disciplina` a ser armazenado no banco de dados."""
 
     dados = disciplina.obter_dados()
-    document = ""
+    sections = []
 
-    for k in DISCIPLINA_CHAVES_DOCUMENT:
+    if "nome" in dados:
+        sections.append(dados["nome"])
+    if instituto:
+        if "departamento" in dados:
+            sections.append(f"{instituto.nome} ({instituto.abrev}) - {dados['departamento']}")
+        else:
+            sections.append(f"{instituto.nome} ({instituto.abrev})")
+    for k in DISCIPLINA_DOCUMENT_CHAVES:
         if k in dados:
-            document += str(dados[k]) + "\n"
+            sections.append(f"{k.capitalize()}: {str(dados[k]).strip()}")
 
+    document = "\n\n".join([str(i) for i in sections])
     return document
 
 
@@ -162,7 +170,7 @@ def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], 
 
         for disciplina, instituto in lote:
             ids.append(_obter_id_disciplina(disciplina))
-            documents.append(_obter_document_disciplina(disciplina))
+            documents.append(_obter_document_disciplina(disciplina, instituto))
             metadatas.append(_obter_metadata_disciplina(disciplina, instituto))
             logger.debug("Disciplina adicionada ao lote (%s/%s): %s", len(ids), batch_size, disciplina)
 
