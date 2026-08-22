@@ -12,6 +12,7 @@ from constants import (
     DB_COLLECTION_NAME,
     DB_DISTANCE_METRIC,
     DB_PATH,
+    DISCIPLINA_CHAVES_DOCUMENT,
     EMBEDDING_DEVICE,
     EMBEDDING_MODEL,
     EMBEDDING_NORMALIZE,
@@ -109,6 +110,13 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
                 type(v),
                 disciplina,
             )
+        if isinstance(v, list) and len(v) == 0:
+            metadata[k] = ""
+            logger.warning(
+                "Chave '%s' era lista vazia em metadatados da disciplina '%s' (foi convertida para string vazia)",
+                k,
+                disciplina,
+            )
 
     return metadata
 
@@ -116,7 +124,13 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
 def _obter_document_disciplina(disciplina: Disciplina) -> str:
     """Retorna documento da `disciplina` a ser armazenado no banco de dados."""
 
-    document = disciplina.obter_dados()["nome"]  # TODO
+    dados = disciplina.obter_dados()
+    document = ""
+
+    for k in DISCIPLINA_CHAVES_DOCUMENT:
+        if k in dados:
+            document += str(dados[k]) + "\n"
+
     return document
 
 

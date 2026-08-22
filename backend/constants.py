@@ -10,3 +10,15 @@ EMBEDDING_NORMALIZE = True  # para similaridade por cosseno
 DB_PATH = Path("./chroma_db")
 DB_COLLECTION_NAME = "disciplinas_jupiterweb"
 DB_DISTANCE_METRIC = "cosine"
+
+DISCIPLINA_CHAVES_DOCUMENT = [
+    "nome",
+    "instituto",
+    "departamento",
+    "ementa",
+    "conteudo programatico",
+    "objetivos",
+    "bibliografia",
+    "bibliografia basica",
+    "bibliografia complementar",
+]
