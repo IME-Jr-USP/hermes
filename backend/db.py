@@ -2,9 +2,17 @@ import time
 
 import chromadb
 import jupiterweb
+from chromadb.utils import embedding_functions
 from jupiterweb import Disciplina
 
-from constants import COLLECTION_NAME, DB_PATH
+from constants import (
+    DB_COLLECTION_NAME,
+    DB_DISTANCE_METRIC,
+    DB_PATH,
+    EMBEDDING_DEVICE,
+    EMBEDDING_MODEL,
+    EMBEDDING_NORMALIZE,
+)
 from utils import get_logger
 
 logger = get_logger(__name__)
@@ -13,8 +21,17 @@ logger = get_logger(__name__)
 def obter_banco_disciplinas() -> chromadb.Collection:
     """Retorna banco de disciplinas. Caso não exista, cria um banco novo vazio."""
 
+    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name=EMBEDDING_MODEL, device=EMBEDDING_DEVICE, normalize_embeddings=EMBEDDING_NORMALIZE
+    )
+
     client = chromadb.PersistentClient(path=DB_PATH)
-    return client.get_or_create_collection(name=COLLECTION_NAME)
+
+    collection = client.get_or_create_collection(
+        name=DB_COLLECTION_NAME, embedding_function=ef, metadata={"hnsw:space": DB_DISTANCE_METRIC}
+    )
+
+    return collection
 
 
 def _obter_metadados_disciplina(disciplina: Disciplina) -> dict:
