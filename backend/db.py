@@ -1,9 +1,12 @@
 import time
+from collections.abc import Iterator
+from itertools import islice
 
 import chromadb
 import jupiterweb
+from chromadb.api import ClientAPI
 from chromadb.utils import embedding_functions
-from jupiterweb import Disciplina
+from jupiterweb import Disciplina, Instituto
 
 from constants import (
     DB_COLLECTION_NAME,
@@ -18,95 +21,119 @@ from utils import get_logger
 logger = get_logger(__name__)
 
 
-def obter_banco_disciplinas() -> chromadb.Collection:
+def obter_client() -> ClientAPI:
+    """Retorna PersistentClient do ChromaDB."""
+
+    client = chromadb.PersistentClient(path=DB_PATH)
+    logger.info("Client ChromaDB inicializado em '%s'", DB_PATH)
+
+    return client
+
+
+def obter_banco_disciplinas(client: ClientAPI) -> chromadb.Collection:
     """Retorna banco de disciplinas. Caso não exista, cria um banco novo vazio."""
 
     ef = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name=EMBEDDING_MODEL, device=EMBEDDING_DEVICE, normalize_embeddings=EMBEDDING_NORMALIZE
     )
 
-    client = chromadb.PersistentClient(path=DB_PATH)
-
     collection = client.get_or_create_collection(
         name=DB_COLLECTION_NAME, embedding_function=ef, metadata={"hnsw:space": DB_DISTANCE_METRIC}
     )
 
+    logger.info("Coleção '%s' pronta (%s itens)", DB_COLLECTION_NAME, collection.count())
     return collection
 
 
-def _obter_metadados_disciplina(disciplina: Disciplina) -> dict:
-    """Retorna metadados da disciplina a serem armazenados no banco de dados vetorial."""
+def _obter_id_disciplina(disciplina: Disciplina) -> str:
+    """Retorna ID da `disciplina` a ser utilizado no banco de dados."""
+
+    return str(disciplina.sigla).upper()
+
+
+def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> dict:
+    """Retorna metadados da `disciplina` a serem armazenados no banco de dados."""
 
     return {"ultima_atualizacao": time.time()}  # TODO
 
 
-def _obter_documento_disciplina(disciplina: Disciplina) -> str:
-    """Retorna documento da disciplina a ser armazenado no banco de dados vetorial."""
+def _obter_document_disciplina(disciplina: Disciplina) -> str:
+    """Retorna documento da `disciplina` a ser armazenado no banco de dados."""
 
     return disciplina.obter_dados()["nome"]  # TODO
 
 
-def obter_disciplinas_jupiterweb(apenas_oferecidas: bool = True) -> list[Disciplina]:
+def _obter_disciplinas_institutos() -> Iterator[tuple[Disciplina, Instituto]]:
+    """Retorna pares (`Disciplina`, `Instituto`) com todas as disciplinas encontradas no Jupiterweb."""
+
+    institutos = [jupiterweb.obter_institutos()[3]]  # TODO remover indice
+    for instituto in institutos:
+        for disciplina in instituto.obter_disciplinas():
+            if disciplina.encontrada():
+                yield disciplina, instituto
+            else:
+                logger.debug("Disciplina não encontrada: %s", disciplina)
+
+
+def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], list[str], list[dict]]]:
     """
-    Retorna lista de disciplinas do Jupiterweb (pode demorar).
-    Todas as disciplina retornadas tem os dados carregados, evitando que as futuras chamadas a disciplina.obter_dados() façam scraping.
-    Caso apenas_oferecidas seja True, retorna apenas disciplinas com oferecimento cadastrado.
-    """
-
-    resultado = []
-    institutos = jupiterweb.obter_institutos()
-    institutos = [institutos[i] for i in [11, 15, 37]]  # TODO remover
-
-    inicio = time.time()
-    logger.info("Obtendo disciplinas do Jupiterweb: %s institutos", len(institutos))
-
-    for i in range(len(institutos)):
-        inst = institutos[i]
-        disc = inst.obter_disciplinas()
-        logger.info("Instituto %s/%s: encontrou %s disciplinas em %s", i + 1, len(institutos), len(disc), str(inst))
-
-        for d in disc:
-            dados = d.obter_dados()
-            if "nome" not in dados:
-                continue
-
-            if not apenas_oferecidas or d.possui_oferecimento():
-                resultado.append(d)
-                logger.debug("Disciplina adicionada: %s", str(d))
-    duracao = time.time() - inicio
-    logger.info("Disciplinas obtidas: %s disciplinas em %.2fs", len(resultado), duracao)
-    return resultado
-
-
-def atualizar_banco_disciplinas(
-    collection: chromadb.Collection, disciplinas: list[Disciplina], batch_size: int = 100
-) -> None:
-    """
-    Atualiza banco de disciplinas com as disciplinas fornecidas.
-    Caso uma disciplina já exista no banco, ela será atualizada. Caso não exista, ela será adicionada.
+    Obtém as disciplinas do Jupiterweb em lotes de tamanho `batch_size`.
+    Cada lote é uma tripla (`ids`, `documents`, `metadatas`), pronto para o banco de dados.
     """
 
-    inicio = time.time()
-    num_batches = (len(disciplinas) + batch_size - 1) // batch_size
-    num_disciplinas = 0
+    iterator_disciplinas = _obter_disciplinas_institutos()
 
-    logger.info("Atualizando banco de disciplinas: %s disciplinas em %s lotes", len(disciplinas), num_batches)
-
-    for i in range(0, len(disciplinas), batch_size):
-        batch = disciplinas[i : i + batch_size]
-        num_batch = i // batch_size + 1
-
+    while True:
+        lote = islice(iterator_disciplinas, batch_size)
         ids = []
         documents = []
         metadatas = []
 
-        for disciplina in batch:
-            ids.append(disciplina.sigla)
-            documents.append(_obter_documento_disciplina(disciplina))
-            metadatas.append(_obter_metadados_disciplina(disciplina))
+        for disciplina, instituto in lote:
+            ids.append(_obter_id_disciplina(disciplina))
+            documents.append(_obter_document_disciplina(disciplina))
+            metadatas.append(_obter_metadata_disciplina(disciplina, instituto))
+            logger.debug("Disciplina adicionada ao lote (%s/%s): %s", len(ids), batch_size, disciplina)
 
+        if len(ids) == 0:
+            break
+        yield ids, documents, metadatas
+
+
+def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50) -> None:
+    """
+    Atualiza `collection` com as disciplinas do Jupiterweb, em lotes de tamanho `batch_size` (pode demorar).
+    """
+
+    inicio = time.time()
+    num_lotes = 0
+    num_disciplinas = 0
+
+    logger.info("Atualizando banco de disciplinas: lotes de %s disciplinas", batch_size)
+
+    for ids, documents, metadatas in _obter_disciplinas_lotes(batch_size):
+        num_lotes += 1
+
+        logger.debug("Lote %s: enviando %s disciplinas", num_lotes, len(ids))
         collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
-        logger.info("Lote %s/%s: enviou %s disciplinas", num_batch, num_batches, len(ids))
+
         num_disciplinas += len(ids)
+        logger.info("Lote %s: enviou %s disciplinas (total: %s)", num_lotes, len(ids), num_disciplinas)
+
     duracao = time.time() - inicio
     logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", num_disciplinas, duracao)
+
+
+def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3) -> chromadb.QueryResult:
+    return collection.query(query_texts=[query], n_results=num)
+
+
+if __name__ == "__main__":  # TODO remover
+    client = obter_client()
+    collection = obter_banco_disciplinas(client)
+    # atualizar_banco_disciplinas(collection)
+
+    while True:
+        query = input(" >>> ")
+        res = buscar_disciplinas(collection, query, 3)
+        print(res)
