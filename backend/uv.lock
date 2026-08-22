@@ -166,7 +166,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "chromadb", specifier = ">=1.5.9" },
-    { name = "jupiterweb-scraper", specifier = ">=1.1.0" },
+    { name = "jupiterweb-scraper", specifier = ">=1.1.1" },
 ]
 
 [[package]]
@@ -756,15 +756,15 @@ wheels = [
 
 [[package]]
 name = "jupiterweb-scraper"
-version = "1.1.0"
+version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/d6/51ce468baafd311a6ffe3e492f8c8753ad064a669aceccb7cd8d955610bf/jupiterweb_scraper-1.1.0.tar.gz", hash = "sha256:7bdfeab08689b72e872de2d25047b22ee61069f77182ad0b6521250aa51c600f", size = 21274, upload-time = "2026-08-17T22:34:29.683Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/7c/7afe22f4a69de3d3a3f03a5f70060741fe844dc266d2c4fc746bd02765f2/jupiterweb_scraper-1.1.1.tar.gz", hash = "sha256:76df381d19a667f0d231182422aff5e0f8005e1e45a79eeea32686d15b6ef5b5", size = 21293, upload-time = "2026-08-22T21:45:15.155Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/67/f2/7047cb5afa7e42d9aae8cc7b937fadba6948046e3d4b1872145694e48d6c/jupiterweb_scraper-1.1.0-py3-none-any.whl", hash = "sha256:b559648554f21f2aee52f0cb3c4931cc3e1af76e17be9e91c86a3558eeb4f97b", size = 17229, upload-time = "2026-08-17T22:34:28.69Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/14/9f2826a3f9c4b3bedb30ee2cff25212423afbee7ea11b2d25ff92bf107d7/jupiterweb_scraper-1.1.1-py3-none-any.whl", hash = "sha256:f301d972518bdd2d6c526748fe4eaa0d1f3feba858470db2d8520adf7a42a366", size = 17230, upload-time = "2026-08-22T21:45:14.059Z" },
 ]
 
 [[package]]

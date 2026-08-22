@@ -54,7 +54,54 @@ def _obter_id_disciplina(disciplina: Disciplina) -> str:
 def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> dict:
     """Retorna metadados da `disciplina` a serem armazenados no banco de dados."""
 
-    return {"ultima_atualizacao": time.time()}  # TODO
+    dados = disciplina.obter_dados()
+
+    metadata = {
+        "sigla": disciplina.sigla,
+        "instituto_nome": instituto.nome,
+        "instituto_abrev": instituto.abrev.upper(),
+        "instituto_codigo": instituto.codigo,
+        "instituto_campus": instituto.campus,
+        "departamento": dados.get("departamento", ""),
+        "nome": dados.get("nome", ""),
+        "nome_ingles": dados.get("nome ingles", ""),
+        "creditos_aula": dados.get("creditos aula", "0"),
+        "creditos_trabalho": dados.get("creditos trabalho", "0"),
+        "carga_horaria_total": dados.get("carga horaria total", "0"),
+        "tipo": dados.get("tipo", ""),
+        "ativacao": dados.get("ativacao", ""),
+        "desativacao": dados.get("desativacao", ""),
+        "ementa": dados.get("ementa", ""),
+        "objetivos": dados.get("objetivos", ""),
+        "conteudo_programatico": dados.get("conteudo programatico", ""),
+        "avaliacao_metodo": dados.get("instrumentos e criterios de avaliacao", {}).get("metodo de avaliacao", ""),
+        "avaliacao_criterio": dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
+        "avaliacao_norma_recup": dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
+        "metodos_ensino": dados.get("metodos de ensino", ""),
+        "atividades_extensao": dados.get("atividades de extensao", ""),
+        "ods_onu": dados.get("objetivos de desenvolvimento sustentavel (onu)", ""),
+        "viagem_didatica": dados.get("viagem didatica", ""),
+        "docentes_responsaveis": [str(i) for i in dados.get("docente(s) responsavel(eis)").splitlines() if i],
+        "oferecida": disciplina.possui_oferecimento(),
+        "ultima_atualizacao": time.time(),
+    }
+
+    # converter seções numéricas
+    for i in ["creditos_aula", "creditos_trabalho", "carga_horaria_total"]:
+        metadata[i] = str(metadata[i]).split()[0]
+        if metadata[i].isnumeric():
+            metadata[i] = int(metadata[i])
+
+    # unir seções de bibliografia
+    metadata["bibliografia"] = ""
+    if "bibliografia" in dados:
+        metadata["bibliografia"] += dados["bibliografia"] + "\n"
+    if "bibliografia basica" in dados:
+        metadata["bibliografia"] += "bibliografia basica:\n" + dados["bibliografia basica"] + "\n"
+    if "bibliografia complementar" in dados:
+        metadata["bibliografia"] += "bibliografia complementar:\n" + dados["bibliografia complementar"] + "\n"
+
+    return metadata
 
 
 def _obter_document_disciplina(disciplina: Disciplina) -> str:
@@ -107,7 +154,7 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
 
     inicio = time.time()
     num_lotes = 0
-    num_disciplinas = 0
+    ids_atualizados = set()
 
     logger.info("Atualizando banco de disciplinas: lotes de %s disciplinas", batch_size)
 
@@ -117,11 +164,13 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
         logger.debug("Lote %s: enviando %s disciplinas", num_lotes, len(ids))
         collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
 
-        num_disciplinas += len(ids)
-        logger.info("Lote %s: enviou %s disciplinas (total: %s)", num_lotes, len(ids), num_disciplinas)
+        ids_atualizados.update(ids)
+        logger.info("Lote %s: enviou %s disciplinas (total: %s)", num_lotes, len(ids), len(ids_atualizados))
+
+    # TODO trocar para oferecimento=False aquelas disciplinas que nao foram atualizadas e tem oferecimento=True (já não estão no Jupiterweb)
 
     duracao = time.time() - inicio
-    logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", num_disciplinas, duracao)
+    logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", len(ids_atualizados), duracao)
 
 
 def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3) -> chromadb.QueryResult:
