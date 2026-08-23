@@ -6,5 +6,5 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "chromadb>=1.5.9",
-    "jupiterweb-scraper>=1.1.1",
+    "jupiterweb-scraper>=1.1.2",
 ]
