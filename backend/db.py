@@ -134,25 +134,29 @@ def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     return "\n\n".join([str(i) for i in sections])
 
 
-def _obter_disciplinas_institutos() -> Iterator[tuple[Disciplina, Instituto]]:
+def _obter_disciplinas_institutos(apenas_oferecidas: bool = True) -> Iterator[tuple[Disciplina, Instituto]]:
     """Retorna tupla `(disciplina, instituto)` para cada disciplina encontrada no
-    Jupiterweb."""
+    Jupiterweb. Se `apenas_oferecidas=True` só retorna disciplinas que atualmente
+    possuem oferecimento no Jupiterweb."""
 
     institutos = [jupiterweb.obter_institutos()[39]]  # TODO remover indice
     for instituto in institutos:
         for disciplina in instituto.obter_disciplinas():
-            if disciplina.encontrada():
+            if disciplina.encontrada() and (not apenas_oferecidas or disciplina.possui_oferecimento()):
                 yield disciplina, instituto
-            else:
-                logger.debug("Disciplina não encontrada: %s", disciplina)
 
 
-def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], list[str], list[dict]]]:
-    """Agrupa as disciplinas em lotes de tamanho máximo `batch_size` para inserção no
-    banco de disciplinas. Cada lote é da forma (`ids`, `documents`, `metadatas`), como
-    esperado pelo ChromaDB."""
+def _obter_disciplinas_lotes(batch_size: int = 50, apenas_oferecidas: bool = True) -> Iterator[tuple[list[str], list[str], list[dict]]]:
+    """
+    Agrupa as disciplinas em lotes de tamanho máximo `batch_size` para inserção no banco
+    de disciplinas. Cada lote é da forma (`ids`, `documents`, `metadatas`), como
+    esperado pelo ChromaDB.
 
-    iterator_disciplinas = _obter_disciplinas_institutos()
+    Se `apenas_oferecidas=True` só considera as disciplinas que atualmente possuem
+    oferecimento no Jupiterweb.
+    """
+
+    iterator_disciplinas = _obter_disciplinas_institutos(apenas_oferecidas)
 
     while True:
         lote = islice(iterator_disciplinas, batch_size)
@@ -171,10 +175,11 @@ def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], 
         yield ids, documents, metadatas
 
 
-def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50) -> None:
+def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50, apenas_oferecidas: bool = True) -> None:
     """
     Atualiza `collection` com as disciplinas do Jupiterweb, em lotes de tamanho máximo
-    `batch_size` (pode demorar).
+    `batch_size` (pode demorar). Se `apenas_oferecidas=True` só considera as disciplinas
+    que atualmente possuem oferecimento no Jupiterweb.
     """
 
     inicio = time.time()
@@ -183,7 +188,7 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
 
     logger.info("Atualizando banco de disciplinas: lotes de %s disciplinas", batch_size)
 
-    for ids, documents, metadatas in _obter_disciplinas_lotes(batch_size):
+    for ids, documents, metadatas in _obter_disciplinas_lotes(batch_size, apenas_oferecidas):
         num_lotes += 1
 
         logger.debug("Lote %s: enviando %s disciplinas", num_lotes, len(ids))
