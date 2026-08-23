@@ -166,14 +166,14 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
             try:
                 disciplina.obter_dados()
             except Exception as e:
-                logger.error("Erro ao obter dados da disciplina '%s': %s", disciplina, e)
+                logger.error("Erro ao obter dados da disciplina '%s' (ignorada): %s", disciplina, e)
                 continue
 
             if not disciplina.encontrada():
                 logger.debug("Disciplina não encontrada: '%s'", disciplina)
                 continue
             if apenas_oferecidas and not disciplina.possui_oferecimento():
-                logger.debug("Disciplina sem oferecimento: '%s' (ignorada)", disciplina)
+                logger.debug("Disciplina sem oferecimento (ignorada): '%s'", disciplina)
                 continue
 
             ids.append(_obter_id_disciplina(disciplina))
