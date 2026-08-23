@@ -5,6 +5,7 @@ from itertools import islice
 import chromadb
 import jupiterweb
 from chromadb.api import ClientAPI
+from chromadb.api.types import Metadata
 from chromadb.utils import embedding_functions
 from jupiterweb import Disciplina, Instituto
 
@@ -56,7 +57,7 @@ def _obter_id_disciplina(disciplina: Disciplina) -> str:
     return str(disciplina.sigla).upper()
 
 
-def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> dict:
+def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> Metadata:
     """Retorna metadados da `disciplina` a serem armazenados no banco de dados."""
 
     dados = disciplina.obter_dados()
@@ -146,7 +147,7 @@ def _obter_disciplinas_institutos(apenas_oferecidas: bool = True) -> Iterator[tu
                 yield disciplina, instituto
 
 
-def _obter_disciplinas_lotes(batch_size: int = 50, apenas_oferecidas: bool = True) -> Iterator[tuple[list[str], list[str], list[dict]]]:
+def _obter_disciplinas_lotes(batch_size: int = 50, apenas_oferecidas: bool = True) -> Iterator[tuple[list[str], list[str], list[Metadata]]]:
     """
     Agrupa as disciplinas em lotes de tamanho máximo `batch_size` para inserção no banco
     de disciplinas. Cada lote é da forma (`ids`, `documents`, `metadatas`), como
@@ -197,8 +198,6 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
         ids_atualizados.update(ids)
         logger.info("Lote %s: enviou %s disciplinas (total: %s)", num_lotes, len(ids), len(ids_atualizados))
 
-    # TODO trocar para oferecimento=False aquelas disciplinas que nao foram atualizadas e tem oferecimento=True (já não estão no Jupiterweb)
-
     duracao = time.time() - inicio
     logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", len(ids_atualizados), duracao)
 
@@ -212,7 +211,7 @@ def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3
 if __name__ == "__main__":  # TODO remover
     client = obter_client()
     collection = obter_banco_disciplinas(client)
-    atualizar_banco_disciplinas(collection)
+    atualizar_banco_disciplinas(collection, 5)
 
     while True:
         query = input(" >>> ")
