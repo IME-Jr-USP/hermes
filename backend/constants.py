@@ -1,7 +1,5 @@
 from pathlib import Path
 
-BATCH_SIZE = 20
-
 LOG_DIR = Path("./logs")
 LOG_PATH = LOG_DIR / "app.log"
 

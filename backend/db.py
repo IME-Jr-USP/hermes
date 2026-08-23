@@ -9,7 +9,6 @@ from chromadb.utils import embedding_functions
 from jupiterweb import Disciplina, Instituto
 
 from constants import (
-    BATCH_SIZE,
     DB_COLLECTION_NAME,
     DB_DISTANCE_METRIC,
     DB_PATH,
@@ -36,11 +35,15 @@ def obter_banco_disciplinas(client: ClientAPI) -> chromadb.Collection:
     """Retorna banco de disciplinas. Caso não exista, cria um banco novo vazio."""
 
     ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=EMBEDDING_MODEL, device=EMBEDDING_DEVICE, normalize_embeddings=EMBEDDING_NORMALIZE
+        model_name=EMBEDDING_MODEL,
+        device=EMBEDDING_DEVICE,
+        normalize_embeddings=EMBEDDING_NORMALIZE,
     )
 
     collection = client.get_or_create_collection(
-        name=DB_COLLECTION_NAME, embedding_function=ef, metadata={"hnsw:space": DB_DISTANCE_METRIC}
+        name=DB_COLLECTION_NAME,
+        embedding_function=ef,  # pyright: ignore[reportArgumentType]
+        metadata={"hnsw:space": DB_DISTANCE_METRIC},
     )
 
     logger.info("Coleção '%s' pronta (%s itens)", DB_COLLECTION_NAME, collection.count())
@@ -79,9 +82,7 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
         "avaliacao_metodo": dados.get("instrumentos e criterios de avaliacao", {}).get("metodo de avaliacao", ""),
         "avaliacao_criterio": dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
         "avaliacao_norma_recup": dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
-        "docentes_responsaveis": [
-            str(i).strip() for i in dados.get("docente(s) responsavel(eis)", "").splitlines() if i
-        ],
+        "docentes_responsaveis": dados.get("docente(s) responsavel(eis)", ""),
         "oferecida": disciplina.possui_oferecimento(),
         "ultima_atualizacao": time.time(),
     }
@@ -103,21 +104,12 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
 
     # converter seções de tipo inválido
     for k, v in metadata.items():
-        if not (isinstance(v, (int, str, list, float, bool)) or (v is None)):
+        if not isinstance(v, (int, str, list, float, bool)) and v != None:
             metadata[k] = str(v)
-            logger.warning(
-                "Chave '%s' tem tipo inválido '%s' em metadados da disciplina '%s' (foi convertida para string)",
-                k,
-                type(v),
-                disciplina,
-            )
+            logger.warning("Chave '%s' dos metadados de '%s' tem tipo '%s' (foi convertida para string)", k, disciplina, type(v))
         if isinstance(v, list) and len(v) == 0:
             metadata[k] = ""
-            logger.warning(
-                "Chave '%s' é lista vazia em metadatados da disciplina '%s' (foi convertida para string vazia)",
-                k,
-                disciplina,
-            )
+            logger.warning("Chave '%s' dos metadados disciplina '%s' é lista vazia (foi convertida para string vazia)", k, disciplina)
 
     return metadata
 
@@ -139,12 +131,12 @@ def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
         if k in dados:
             sections.append(f"{k.capitalize()}: {str(dados[k]).strip()}")
 
-    document = "\n\n".join([str(i) for i in sections])
-    return document
+    return "\n\n".join([str(i) for i in sections])
 
 
 def _obter_disciplinas_institutos() -> Iterator[tuple[Disciplina, Instituto]]:
-    """Retorna pares (`Disciplina`, `Instituto`) com todas as disciplinas encontradas no Jupiterweb."""
+    """Retorna tupla `(disciplina, instituto)` para cada disciplina encontrada no
+    Jupiterweb."""
 
     institutos = [jupiterweb.obter_institutos()[39]]  # TODO remover indice
     for instituto in institutos:
@@ -155,11 +147,10 @@ def _obter_disciplinas_institutos() -> Iterator[tuple[Disciplina, Instituto]]:
                 logger.debug("Disciplina não encontrada: %s", disciplina)
 
 
-def _obter_disciplinas_lotes(batch_size: int = BATCH_SIZE) -> Iterator[tuple[list[str], list[str], list[dict]]]:
-    """
-    Obtém as disciplinas do Jupiterweb em lotes de tamanho `batch_size`.
-    Cada lote é uma tripla (`ids`, `documents`, `metadatas`), pronto para o banco de dados.
-    """
+def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], list[str], list[dict]]]:
+    """Agrupa as disciplinas em lotes de tamanho máximo `batch_size` para inserção no
+    banco de disciplinas. Cada lote é da forma (`ids`, `documents`, `metadatas`), como
+    esperado pelo ChromaDB."""
 
     iterator_disciplinas = _obter_disciplinas_institutos()
 
@@ -180,9 +171,10 @@ def _obter_disciplinas_lotes(batch_size: int = BATCH_SIZE) -> Iterator[tuple[lis
         yield ids, documents, metadatas
 
 
-def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = BATCH_SIZE) -> None:
+def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50) -> None:
     """
-    Atualiza `collection` com as disciplinas do Jupiterweb, em lotes de tamanho `batch_size` (pode demorar).
+    Atualiza `collection` com as disciplinas do Jupiterweb, em lotes de tamanho máximo
+    `batch_size` (pode demorar).
     """
 
     inicio = time.time()
@@ -207,6 +199,8 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
 
 
 def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3) -> chromadb.QueryResult:
+    """Busca as `num` disciplinas mais similares a `query`."""
+
     return collection.query(query_texts=[query], n_results=num)
 
 
