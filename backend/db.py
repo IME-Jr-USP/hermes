@@ -168,7 +168,7 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
         for disciplina in instituto.obter_disciplinas():
             try:
                 disciplina.obter_dados()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error("Erro ao obter dados da disciplina '%s' (ignorada): %s", disciplina, e)
                 continue
 
