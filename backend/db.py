@@ -9,6 +9,7 @@ from chromadb.utils import embedding_functions
 from jupiterweb import Disciplina, Instituto
 
 from constants import (
+    BATCH_SIZE,
     DB_COLLECTION_NAME,
     DB_DISTANCE_METRIC,
     DB_PATH,
@@ -154,7 +155,7 @@ def _obter_disciplinas_institutos() -> Iterator[tuple[Disciplina, Instituto]]:
                 logger.debug("Disciplina não encontrada: %s", disciplina)
 
 
-def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], list[str], list[dict]]]:
+def _obter_disciplinas_lotes(batch_size: int = BATCH_SIZE) -> Iterator[tuple[list[str], list[str], list[dict]]]:
     """
     Obtém as disciplinas do Jupiterweb em lotes de tamanho `batch_size`.
     Cada lote é uma tripla (`ids`, `documents`, `metadatas`), pronto para o banco de dados.
@@ -179,7 +180,7 @@ def _obter_disciplinas_lotes(batch_size: int = 50) -> Iterator[tuple[list[str], 
         yield ids, documents, metadatas
 
 
-def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50) -> None:
+def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = BATCH_SIZE) -> None:
     """
     Atualiza `collection` com as disciplinas do Jupiterweb, em lotes de tamanho `batch_size` (pode demorar).
     """
