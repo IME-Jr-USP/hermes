@@ -206,14 +206,3 @@ def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3
     """Busca as `num` disciplinas mais similares a `query`."""
 
     return collection.query(query_texts=[query], n_results=num)
-
-
-if __name__ == "__main__":  # TODO remover
-    client = obter_client()
-    collection = obter_banco_disciplinas(client)
-    atualizar_banco_disciplinas(collection, 5)
-
-    while True:
-        query = input(" >>> ")
-        res = buscar_disciplinas(collection, query, 3)
-        print(res)
