@@ -1,6 +1,4 @@
 import time
-from collections.abc import Iterator
-from itertools import islice
 
 import chromadb
 import jupiterweb
@@ -135,45 +133,14 @@ def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     return "\n\n".join([str(i) for i in sections])
 
 
-def _obter_disciplinas_institutos(apenas_oferecidas: bool = True) -> Iterator[tuple[Disciplina, Instituto]]:
-    """Retorna tupla `(disciplina, instituto)` para cada disciplina encontrada no
-    Jupiterweb. Se `apenas_oferecidas=True` só retorna disciplinas que atualmente
-    possuem oferecimento no Jupiterweb."""
+def _upsert_banco_disciplinas(
+    collection: chromadb.Collection, ids: list[str], documents: list[str], metadatas: list[Metadata], num_lote: int
+) -> None:
+    """Faz upsert de lote no banco de disciplinas."""
 
-    institutos = [jupiterweb.obter_institutos()[39]]  # TODO remover indice
-    for instituto in institutos:
-        for disciplina in instituto.obter_disciplinas():
-            if disciplina.encontrada() and (not apenas_oferecidas or disciplina.possui_oferecimento()):
-                yield disciplina, instituto
-
-
-def _obter_disciplinas_lotes(batch_size: int = 50, apenas_oferecidas: bool = True) -> Iterator[tuple[list[str], list[str], list[Metadata]]]:
-    """
-    Agrupa as disciplinas em lotes de tamanho máximo `batch_size` para inserção no banco
-    de disciplinas. Cada lote é da forma (`ids`, `documents`, `metadatas`), como
-    esperado pelo ChromaDB.
-
-    Se `apenas_oferecidas=True` só considera as disciplinas que atualmente possuem
-    oferecimento no Jupiterweb.
-    """
-
-    iterator_disciplinas = _obter_disciplinas_institutos(apenas_oferecidas)
-
-    while True:
-        lote = islice(iterator_disciplinas, batch_size)
-        ids = []
-        documents = []
-        metadatas = []
-
-        for disciplina, instituto in lote:
-            ids.append(_obter_id_disciplina(disciplina))
-            documents.append(_obter_document_disciplina(disciplina, instituto))
-            metadatas.append(_obter_metadata_disciplina(disciplina, instituto))
-            logger.debug("Disciplina adicionada ao lote (%s/%s): %s", len(ids), batch_size, disciplina)
-
-        if len(ids) == 0:
-            break
-        yield ids, documents, metadatas
+    logger.debug("Lote %s: enviando %s disciplinas", num_lote, len(ids))
+    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+    logger.info("Lote %s: enviou %s disciplinas (total no banco: %s)", num_lote, len(ids), collection.count())
 
 
 def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50, apenas_oferecidas: bool = True) -> None:
@@ -185,21 +152,51 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
 
     inicio = time.time()
     num_lotes = 0
-    ids_atualizados = set()
+    num_atualizadas = 0
 
-    logger.info("Atualizando banco de disciplinas: lotes de %s disciplinas", batch_size)
+    logger.info("Atualizando banco de disciplinas (tamanho dos lotes: %s)", batch_size)
 
-    for ids, documents, metadatas in _obter_disciplinas_lotes(batch_size, apenas_oferecidas):
+    ids = []
+    documents = []
+    metadatas = []
+    for instituto in [jupiterweb.obter_institutos()[39]]:  # TODO remover indice
+        logger.debug("Extraindo disciplinas de '%s'", instituto)
+
+        for disciplina in instituto.obter_disciplinas():
+            try:
+                disciplina.obter_dados()
+            except Exception as e:
+                logger.error("Erro ao obter dados da disciplina '%s': %s", disciplina, e)
+                continue
+
+            if not disciplina.encontrada():
+                logger.debug("Disciplina não encontrada: '%s'", disciplina)
+                continue
+            if apenas_oferecidas and not disciplina.possui_oferecimento():
+                logger.debug("Disciplina sem oferecimento: '%s' (ignorada)", disciplina)
+                continue
+
+            ids.append(_obter_id_disciplina(disciplina))
+            documents.append(_obter_document_disciplina(disciplina, instituto))
+            metadatas.append(_obter_metadata_disciplina(disciplina, instituto))
+            logger.info("Lote %s: disciplina '%s' adicionada (%s/%s)", num_lotes + 1, disciplina, len(ids), batch_size)
+
+            if len(ids) >= batch_size:
+                _upsert_banco_disciplinas(collection, ids, documents, metadatas, num_lotes + 1)
+
+                num_lotes += 1
+                num_atualizadas += len(ids)
+
+                ids.clear()
+                documents.clear()
+                metadatas.clear()
+    if len(ids) > 0:
+        _upsert_banco_disciplinas(collection, ids, documents, metadatas, num_lotes + 1)
         num_lotes += 1
-
-        logger.debug("Lote %s: enviando %s disciplinas", num_lotes, len(ids))
-        collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
-
-        ids_atualizados.update(ids)
-        logger.info("Lote %s: enviou %s disciplinas (total: %s)", num_lotes, len(ids), len(ids_atualizados))
+        num_atualizadas += len(ids)
 
     duracao = time.time() - inicio
-    logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", len(ids_atualizados), duracao)
+    logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", num_atualizadas, duracao)
 
 
 def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3) -> chromadb.QueryResult:
