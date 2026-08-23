@@ -191,6 +191,7 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
 
     for ids, documents, metadatas in _obter_disciplinas_lotes(batch_size, apenas_oferecidas):
         num_lotes += 1
+        print(metadatas[0])  # TODO
 
         logger.debug("Lote %s: enviando %s disciplinas", num_lotes, len(ids))
         collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
