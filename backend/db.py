@@ -1,3 +1,4 @@
+import logging
 import time
 
 import chromadb
@@ -19,6 +20,8 @@ from constants import (
 from utils import get_logger
 
 logger = get_logger(__name__)
+logging.getLogger("sentence_transformers").setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 
 def obter_client() -> ClientAPI:
@@ -202,4 +205,4 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
 def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3) -> chromadb.QueryResult:
     """Busca as `num` disciplinas mais similares a `query`."""
 
-    return collection.query(query_texts=[query], n_results=num)
+    return collection.query(query_texts=[query], n_results=num, where={"oferecida": True})
