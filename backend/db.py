@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 
@@ -15,7 +16,7 @@ from constants import (
     EMBEDDING_MODEL,
     EMBEDDING_NORMALIZE,
 )
-from jupiterweb import Disciplina, Instituto
+from jupiterweb import Disciplina, HorarioAula, Instituto, Oferecimento
 from utils import get_logger
 
 logger = get_logger(__name__)
@@ -95,6 +96,9 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
         "avaliacao_criterio": dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
         "avaliacao_norma_recup": dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
         "docentes_responsaveis": dados.get("docente(s) responsavel(eis)", ""),
+        "url_principal": disciplina.url_principal,
+        "url_oferecimento": disciplina.url_oferecimento,
+        "url_requisitos": disciplina.url_requisitos,
         "ultima_atualizacao": time.time(),
     }
 
@@ -107,6 +111,47 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     if "bibliografia complementar" in dados:
         metadata["bibliografia"] += "bibliografia complementar:\n" + dados["bibliografia complementar"] + "\n"
 
+    # seções de oferecimento
+    professores = set()
+    tipos_vaga = set()
+    dias_semana = set()
+    horas_aula = set()
+    turmas = []
+
+    for turma in dados.get("oferecimento", []):
+        if not isinstance(turma, Oferecimento):
+            continue
+
+        tipos_vaga.update(turma.vagas.keys())
+        dados_turma = {"horarios": []}
+
+        for horario in turma.horarios:
+            if not isinstance(horario, HorarioAula):
+                continue
+
+            if horario.professor:
+                professores.add(horario.professor)
+            if horario.dia_semana:
+                dias_semana.add(horario.dia_semana)
+            if horario.hora_inicio:
+                horas_aula.add(horario.hora_inicio)
+
+            dados_turma["horarios"].append(
+                {
+                    "hora_inicio": horario.hora_inicio,
+                    "hora_fim": horario.hora_fim,
+                    "professor": horario.professor,
+                    "dia_semana": horario.dia_semana,
+                }
+            )
+        turmas.append(dados_turma)
+
+    metadata["professores"] = [str(i) for i in professores]
+    metadata["tipos_vaga"] = [str(i) for i in tipos_vaga]
+    metadata["dias_semana_oferecida"] = [str(i) for i in dias_semana]
+    metadata["horarios_oferecida"] = [str(i) for i in horas_aula]
+    metadata["turmas_oferecidas"] = json.dumps(turmas, ensure_ascii=False)
+
     # converter seções numéricas
     for i in ["creditos_aula", "creditos_trabalho", "carga_horaria_total"]:
         metadata[i] = str(metadata[i]).split()[0]
@@ -116,12 +161,13 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     # converter seções de tipo inválido
     for k, v in metadata.items():
         if not isinstance(v, (int, str, list, float, bool)) and v != None:
-            metadata[k] = str(v)
-            logger.warning("Chave '%s' dos metadados de '%s' tem tipo '%s' (foi convertida para string)", k, disciplina, type(v))
+            metadata[k] = None
+            logger.warning("Chave '%s' dos metadados de '%s' tem tipo '%s' (foi convertida para None)", k, disciplina, type(v))
         if isinstance(v, list) and len(v) == 0:
-            metadata[k] = ""
-            logger.warning("Chave '%s' dos metadados de '%s' é lista vazia (foi convertida para string vazia)", k, disciplina)
+            metadata[k] = None
+            logger.warning("Chave '%s' dos metadados de '%s' é lista vazia (foi convertida para None)", k, disciplina)
 
+    print(metadata)  # TODO
     return metadata
 
 
