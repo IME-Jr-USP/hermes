@@ -292,7 +292,6 @@ function App() {
             <header className="app-header" aria-label="Cabeçalho do Hermes">
                 <a className="app-brand" href="/" aria-label="Hermes">
                     <img className="app-brand-mark" src={logo} width="48" height="48" alt="" />
-                    <span className="app-title">Hermes</span>
                 </a>
             </header>
 
@@ -304,7 +303,6 @@ function App() {
                     {shouldShowWelcome && (
                         <div className={isWelcomeExiting ? 'welcome is-exiting' : 'welcome'}>
                             <div className="brand-lockup">
-                                <img className="brand-mark" src={logo} width="160" height="160" alt="" />
                                 <h1 id={hasConversation ? undefined : 'page-title'} className="brand-title">
                                     Hermes
                                 </h1>
@@ -335,7 +333,7 @@ function App() {
                                             <ReactMarkdown
                                                 components={{
                                                     p: ({ children }) => (
-                                                        <p style={{ display: 'block', margin: '0 0 0.5rem 0', whiteSpace: 'pre-wrap' }}>
+                                                        <p style={{ display: 'block', whiteSpace: 'pre-wrap' }}>
                                                             {children}
                                                         </p>
                                                     ),
