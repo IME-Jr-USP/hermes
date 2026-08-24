@@ -1,4 +1,5 @@
 import json
+from pprint import pprint
 from typing import Annotated
 
 from langchain.agents import create_agent
@@ -11,7 +12,9 @@ from pydantic import BaseModel, Field
 
 from constants import AGENT_MODEL, SYSTEM_PROMPT
 from db import obter_banco_disciplinas
-from utils import CampusDisciplina, truncar_texto
+from utils import CampusDisciplina, get_logger, truncar_texto
+
+logger = get_logger(__name__)
 
 
 class FiltroDisciplinas(BaseModel):
@@ -126,13 +129,17 @@ def buscar_disciplinas(query: str, filtros: FiltroDisciplinas | None = None, n_r
         nenhuma disciplina corresponder à busca e aos filtros.
     """
 
+    logger.info("buscar_disciplinas: '%s'", query)
+
     n_resultados = min(n_resultados, 20)
     collection = obter_banco_disciplinas()
 
     where = filtros.montar_where() if filtros else None
+    logger.debug("buscar_disciplinas: filtro='%s'", where)
 
     res = collection.query(query_texts=[query], n_results=n_resultados, where=where)
     if not res["metadatas"] or not res["ids"][0]:
+        logger.warning("buscar_disciplinas: nenhuma encontrada")
         return json.dumps([], ensure_ascii=False)
 
     saida = []
@@ -145,7 +152,62 @@ def buscar_disciplinas(query: str, filtros: FiltroDisciplinas | None = None, n_r
         }
         saida.append(item)
 
-    print(saida)
+    logger.debug("buscar_disciplinas: %s encontradas", len(saida))
+    return json.dumps(saida, ensure_ascii=False, indent=2)
+
+
+@tool
+def obter_informacoes_disciplinas(siglas: list[str]) -> str:
+    """Obtém todas as informações detalhadas de uma ou mais disciplinas pela sigla.
+
+    Use esta tool quando o usuário já souber a(s) sigla(s) exata(s) da(s)
+    disciplina(s) (ex.: "MAC0110", "PCS3616") ou quando quiser se aprofundar em
+    disciplinas já encontradas anteriormente (por exemplo, através da tool
+    `buscar_disciplinas`). Não use esta tool para buscar disciplinas por tema
+    ou assunto — nesse caso, use `buscar_disciplinas`.
+
+    Se o usuário pedir informações sobre várias disciplinas, passe todas as
+    siglas de uma vez nesta única chamada, em vez de chamar a tool separadamente
+    para cada uma.
+
+    Retorna todas as informações disponíveis sobre cada disciplina: nome,
+    instituto, campus, ementa, objetivos, conteúdo programático, créditos,
+    carga horária, entre outros metadados. Use os campos que forem relevantes
+    para responder à pergunta do usuário; não é necessário listar todos eles
+    na resposta.
+
+    Args:
+        siglas: Lista com uma ou mais siglas exatas de disciplinas, no formato
+            usado pela USP (ex.: ["MAC0110", "PCS3616"]). Não é case-sensitive.
+
+    Returns:
+        JSON com uma lista de objetos, um por disciplina encontrada, na mesma
+        ordem das siglas informadas. Siglas não encontradas aparecem como um
+        objeto com a chave "erro" no lugar dos dados, indicando qual sigla
+        falhou — as demais disciplinas ainda são retornadas normalmente.
+    """
+
+    logger.info("obter_informacoes_disciplinas: %s disciplinas", len(siglas))
+
+    siglas = [s.strip().upper() for s in siglas]
+    logger.debug("obter_informacoes_disciplinas: %s", ",".join(siglas))
+
+    collection = obter_banco_disciplinas()
+    resultado = collection.get(ids=siglas, include=["metadatas", "documents"])
+
+    if not resultado["metadatas"] or not resultado["documents"]:
+        logger.warning("obter_informacoes_disciplinas: nenhuma disciplina foi encontrada")
+        return json.dumps("[]", ensure_ascii=False)
+
+    encontrados = dict(zip(resultado["ids"], resultado["metadatas"]))
+
+    saida = []
+    for sigla in siglas:
+        if sigla not in encontrados:
+            logger.warning("obter_informacoes_disciplinas: disciplina '%s' não foi encontrada", sigla)
+            saida.append({"sigla": sigla, "erro": "Disciplina não encontrada."})
+            continue
+        saida.append(encontrados[sigla])
 
     return json.dumps(saida, ensure_ascii=False, indent=2)
 
@@ -155,7 +217,7 @@ def obter_agent() -> CompiledStateGraph:
 
     return create_agent(
         model=AGENT_MODEL,
-        tools=[buscar_disciplinas],
+        tools=[buscar_disciplinas, obter_informacoes_disciplinas],
         system_prompt=SYSTEM_PROMPT,
         checkpointer=InMemorySaver(),
     )
@@ -180,4 +242,9 @@ if __name__ == "__main__":
 
     while True:
         mensagem = input(" >>> ")
-        print(chat(agent, mensagem, conversa_id))
+        if mensagem.strip().lower() == "sair":
+            break
+
+        resposta = chat(agent, mensagem, conversa_id)
+        print("\n".join([str(i["text"]) for i in resposta if i["type"] == "text"]))
+        pprint(resposta)
