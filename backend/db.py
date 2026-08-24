@@ -23,33 +23,44 @@ logger = get_logger(__name__)
 logging.getLogger("sentence_transformers").setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 
+_client: ClientAPI | None = None
+_collection: chromadb.Collection | None = None
+
 
 def obter_client() -> ClientAPI:
-    """Retorna PersistentClient do ChromaDB."""
+    """Retorna a instância única do cliente ChromaDB, criando-a na primeira chamada."""
 
-    client = chromadb.PersistentClient(path=DB_PATH)
-    logger.info("Client ChromaDB inicializado em '%s'", DB_PATH)
+    global _client
+    if _client is None:
+        _client = chromadb.PersistentClient(path=DB_PATH)
+        logger.info("Client ChromaDB inicializado em '%s'", DB_PATH)
+    return _client
 
-    return client
 
+def obter_banco_disciplinas() -> chromadb.Collection:
+    """
+    Retorna a instância única do banco de disciplinas, carregando-o na primeira chamada.
+    Se não existir na primeira chamada, cria um banco novo vazio.
+    """
 
-def obter_banco_disciplinas(client: ClientAPI) -> chromadb.Collection:
-    """Retorna banco de disciplinas. Caso não exista, cria um banco novo vazio."""
+    global _collection
+    if _collection is None:
+        client = obter_client()
 
-    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=EMBEDDING_MODEL,
-        device=EMBEDDING_DEVICE,
-        normalize_embeddings=EMBEDDING_NORMALIZE,
-    )
+        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name=EMBEDDING_MODEL,
+            device=EMBEDDING_DEVICE,
+            normalize_embeddings=EMBEDDING_NORMALIZE,
+        )
 
-    collection = client.get_or_create_collection(
-        name=DB_COLLECTION_NAME,
-        embedding_function=ef,  # pyright: ignore[reportArgumentType]
-        metadata={"hnsw:space": DB_DISTANCE_METRIC},
-    )
+        _collection = client.get_or_create_collection(
+            name=DB_COLLECTION_NAME,
+            embedding_function=ef,  # pyright: ignore[reportArgumentType]
+            metadata={"hnsw:space": DB_DISTANCE_METRIC},
+        )
 
-    logger.info("Coleção '%s' pronta (%s itens)", DB_COLLECTION_NAME, collection.count())
-    return collection
+        logger.info("Banco de disciplinas '%s' pronto (%s itens)", DB_COLLECTION_NAME, _collection.count())
+    return _collection
 
 
 def _obter_id_disciplina(disciplina: Disciplina) -> str:
@@ -85,7 +96,6 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
         "avaliacao_criterio": dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
         "avaliacao_norma_recup": dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
         "docentes_responsaveis": dados.get("docente(s) responsavel(eis)", ""),
-        "oferecida": disciplina.possui_oferecimento(),
         "ultima_atualizacao": time.time(),
     }
 
@@ -111,7 +121,7 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
             logger.warning("Chave '%s' dos metadados de '%s' tem tipo '%s' (foi convertida para string)", k, disciplina, type(v))
         if isinstance(v, list) and len(v) == 0:
             metadata[k] = ""
-            logger.warning("Chave '%s' dos metadados disciplina '%s' é lista vazia (foi convertida para string vazia)", k, disciplina)
+            logger.warning("Chave '%s' dos metadados de '%s' é lista vazia (foi convertida para string vazia)", k, disciplina)
 
     return metadata
 
@@ -136,33 +146,49 @@ def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     return "\n\n".join([str(i) for i in sections])
 
 
-def _upsert_banco_disciplinas(
-    collection: chromadb.Collection, ids: list[str], documents: list[str], metadatas: list[Metadata], num_lote: int
-) -> None:
+def _upsert_banco_disciplinas(ids: list[str], documents: list[str], metadatas: list[Metadata], num_lote: int) -> None:
     """Faz upsert de lote no banco de disciplinas."""
+
+    collection = obter_banco_disciplinas()
 
     logger.debug("Lote %s: enviando %s disciplinas", num_lote, len(ids))
     collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
     logger.info("Lote %s: enviou %s disciplinas (total no banco: %s)", num_lote, len(ids), collection.count())
 
 
-def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int = 50, apenas_oferecidas: bool = True) -> None:
+def atualizar_banco_disciplinas(institutos: list[Instituto] | None = None, batch_size: int = 50) -> None:
     """
-    Atualiza `collection` com as disciplinas do Jupiterweb, em lotes de tamanho máximo
-    `batch_size` (pode demorar). Se `apenas_oferecidas=True` só considera as disciplinas
-    que atualmente possuem oferecimento no Jupiterweb.
+    Sincroniza o banco com as disciplinas atualmente oferecidas no Jupiterweb (pode
+    demorar).
+
+    Insere disciplinas novas, atualiza as já existentes e remove do banco as que já não
+    estão sendo oferecidas ou que já não existem mais. As inserções/atualizações são
+    feitas em lotes de tamanho `batch_size`, exceto pelo último que pode ser menor.
+
+    Se `institutos` forem informados, restringe a sincronização às disciplinas desses
+    institutos. Nesse caso, apenas elas são inseridas, atualizadas ou removidas, e o
+    restante do banco não é alterado. Se `instituto=None`, considera todos os institutos
+    do Jupiterweb, e o banco todo é atualizado.
     """
+
+    if institutos is None:
+        institutos = jupiterweb.obter_institutos()
 
     inicio = time.time()
     num_lotes = 0
-    num_atualizadas = 0
 
-    logger.info("Atualizando banco de disciplinas (tamanho dos lotes: %s)", batch_size)
+    logger.info("Atualizando banco de disciplinas: %s institutos (lotes de %s)", len(institutos), batch_size)
+
+    collection = obter_banco_disciplinas()
+    ids_existentes = set(collection.get(where={"instituto_codigo": {"$in": [i.codigo for i in institutos]}})["ids"])
+    ids_atualizados = set()
+    logger.debug("Banco tem %s disciplinas de institutos selecionados para atualização", len(ids_existentes))
 
     ids = []
     documents = []
     metadatas = []
-    for instituto in [jupiterweb.obter_institutos()[39]]:  # TODO remover indice
+
+    for instituto in institutos:
         logger.debug("Extraindo disciplinas de '%s'", instituto)
 
         for disciplina in instituto.obter_disciplinas():
@@ -173,36 +199,42 @@ def atualizar_banco_disciplinas(collection: chromadb.Collection, batch_size: int
                 continue
 
             if not disciplina.encontrada():
-                logger.debug("Disciplina não encontrada: '%s'", disciplina)
+                logger.debug("Disciplina '%s' não encontrada no Jupiterweb (ignorada)", disciplina)
                 continue
-            if apenas_oferecidas and not disciplina.possui_oferecimento():
-                logger.debug("Disciplina sem oferecimento (ignorada): '%s'", disciplina)
+            if not disciplina.possui_oferecimento():
+                logger.debug("Disciplina '%s' sem oferecimento (ignorada)", disciplina)
                 continue
 
-            ids.append(_obter_id_disciplina(disciplina))
+            id_ = _obter_id_disciplina(disciplina)
+            ids_atualizados.add(id_)
+            ids.append(id_)
             documents.append(_obter_document_disciplina(disciplina, instituto))
             metadatas.append(_obter_metadata_disciplina(disciplina, instituto))
             logger.info("Lote %s: disciplina '%s' adicionada (%s/%s)", num_lotes + 1, disciplina, len(ids), batch_size)
 
             if len(ids) >= batch_size:
-                _upsert_banco_disciplinas(collection, ids, documents, metadatas, num_lotes + 1)
+                _upsert_banco_disciplinas(ids, documents, metadatas, num_lotes + 1)
 
                 num_lotes += 1
-                num_atualizadas += len(ids)
-
                 ids.clear()
                 documents.clear()
                 metadatas.clear()
     if len(ids) > 0:
-        _upsert_banco_disciplinas(collection, ids, documents, metadatas, num_lotes + 1)
+        _upsert_banco_disciplinas(ids, documents, metadatas, num_lotes + 1)
         num_lotes += 1
-        num_atualizadas += len(ids)
+
+    ids_desatualizados = ids_existentes - ids_atualizados
+    if ids_desatualizados:
+        logger.info("Removendo %s disciplinas desatualizadas do banco (sem oferecimento ou inexistentes)", len(ids_desatualizados))
+        for id_ in ids_desatualizados:
+            logger.debug("Removendo disciplina desatualizada: '%s'", id_)
+        collection.delete(ids=list(ids_desatualizados))
 
     duracao = time.time() - inicio
-    logger.info("Banco de disciplinas atualizado: %s disciplinas em %.2fs", num_atualizadas, duracao)
-
-
-def buscar_disciplinas(collection: chromadb.Collection, query: str, num: int = 3) -> chromadb.QueryResult:
-    """Busca as `num` disciplinas mais similares a `query`."""
-
-    return collection.query(query_texts=[query], n_results=num, where={"oferecida": True})
+    logger.info(
+        "Banco de disciplinas atualizado (em %.2fs): adicionadas/atualizadas: %s | removidas: %s | total no banco: %s",
+        duracao,
+        len(ids_atualizados),
+        len(ids_desatualizados),
+        collection.count(),
+    )
