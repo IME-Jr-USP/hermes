@@ -27,7 +27,10 @@ class MensagemRequest(BaseModel):
 
 
 @app.post("/api/chat")
-async def chat(body: MensagemRequest, request: Request):
+async def chat(body: MensagemRequest, request: Request) -> dict:
+    """Faz requisição para enviar mensagem para o agente, e retorna dicionário com a
+    resposta obtida."""
+
     inicio = time.time()
     logger.info(
         "Requisição para chat (conversa_id='%s'): ip '%s'",

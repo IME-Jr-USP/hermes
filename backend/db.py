@@ -6,8 +6,6 @@ import jupiterweb
 from chromadb.api import ClientAPI
 from chromadb.api.types import Metadata
 from chromadb.utils import embedding_functions
-from jupiterweb import Disciplina, Instituto
-
 from constants import (
     DB_COLLECTION_NAME,
     DB_DISTANCE_METRIC,
@@ -17,6 +15,7 @@ from constants import (
     EMBEDDING_MODEL,
     EMBEDDING_NORMALIZE,
 )
+from jupiterweb import Disciplina, Instituto
 from utils import get_logger
 
 logger = get_logger(__name__)
