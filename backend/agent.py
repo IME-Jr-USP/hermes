@@ -2,6 +2,8 @@ import json
 from pprint import pprint
 from typing import Annotated
 
+from constants import AGENT_MODEL, SYSTEM_PROMPT
+from db import obter_banco_disciplinas
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
@@ -9,9 +11,6 @@ from langchain_core.utils.uuid import uuid7
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, Field
-
-from constants import AGENT_MODEL, SYSTEM_PROMPT
-from db import obter_banco_disciplinas
 from utils import CampusDisciplina, get_logger, truncar_texto
 
 logger = get_logger(__name__)
@@ -223,7 +222,7 @@ def obter_agent() -> CompiledStateGraph:
     )
 
 
-def chat(agent: CompiledStateGraph, mensagem: str, conversa_id: str) -> list[dict]:
+def obter_resposta(agent: CompiledStateGraph, mensagem: str, conversa_id: str) -> list[dict]:
     """Envia mensagem para agente naconversa especificada, e retorna a sua resposta."""
 
     config: RunnableConfig = {"configurable": {"thread_id": conversa_id}}
@@ -245,6 +244,6 @@ if __name__ == "__main__":
         if mensagem.strip().lower() == "sair":
             break
 
-        resposta = chat(agent, mensagem, conversa_id)
+        resposta = obter_resposta(agent, mensagem, conversa_id)
         print("\n".join([str(i["text"]) for i in resposta if i["type"] == "text"]))
         pprint(resposta)

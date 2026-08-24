@@ -1,4 +1,9 @@
-# Logs
+.venv
+__pycache__
+chroma_db
+temp.py
+tempCodeRunnerFile.py
+
 logs
 *.log
 npm-debug.log*
@@ -12,7 +17,7 @@ dist
 dist-ssr
 *.local
 
-# Editor directories and files
+.vscode
 .vscode/*
 !.vscode/extensions.json
 .idea
