@@ -1,5 +1,4 @@
 import json
-from pprint import pprint
 from typing import Annotated
 
 from constants import AGENT_MODEL, SYSTEM_PROMPT
@@ -7,7 +6,6 @@ from db import obter_banco_disciplinas
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
-from langchain_core.utils.uuid import uuid7
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, Field
@@ -222,7 +220,7 @@ def obter_agent() -> CompiledStateGraph:
     )
 
 
-def obter_resposta(agent: CompiledStateGraph, mensagem: str, conversa_id: str) -> list[dict]:
+def obter_resposta(agent: CompiledStateGraph, mensagem: str, conversa_id: str) -> str:
     """Envia mensagem para agente naconversa especificada, e retorna a sua resposta."""
 
     config: RunnableConfig = {"configurable": {"thread_id": conversa_id}}
@@ -231,19 +229,6 @@ def obter_resposta(agent: CompiledStateGraph, mensagem: str, conversa_id: str) -
         {"messages": [{"role": "user", "content": mensagem}]},
         config=config,
     )
-    return resultado["messages"][-1].content
+    mensagens = resultado["messages"][-1].content
 
-
-if __name__ == "__main__":
-    obter_banco_disciplinas()
-    agent = obter_agent()
-    conversa_id = str(uuid7())
-
-    while True:
-        mensagem = input(" >>> ")
-        if mensagem.strip().lower() == "sair":
-            break
-
-        resposta = obter_resposta(agent, mensagem, conversa_id)
-        print("\n".join([str(i["text"]) for i in resposta if i["type"] == "text"]))
-        pprint(resposta)
+    return "\n".join([m.get("text", "") for m in mensagens])
