@@ -129,8 +129,8 @@ function App() {
     }, [isAssistantThinking])
 
     useEffect(() => {
-        transcriptRef.current?.scrollTo({
-            top: transcriptRef.current.scrollHeight,
+        window.scrollTo({
+            top: document.documentElement.scrollHeight,
             behavior: 'smooth',
         })
     }, [messages, isAssistantThinking])

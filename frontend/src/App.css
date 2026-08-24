@@ -63,13 +63,20 @@
 }
 
 .chat-surface.is-active {
-  grid-template-rows: minmax(0, 1fr) auto;
-  align-items: stretch;
-  align-content: stretch;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 52rem);
-  min-height: calc(100vh - 8rem);
+  min-height: auto;
+  /* Espaço inferior suficiente para as mensagens não ficarem escondidas atrás do composer fixo */
+  padding-bottom: 7.5rem; 
+}
+
+.chat-surface.is-active .composer {
   position: fixed;
   bottom: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
 }
 
 .welcome {
@@ -140,12 +147,9 @@
 
 .transcript {
   width: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  scroll-behavior: smooth;
+  /* Desativa a rolagem interna da div para a página cuidar do scroll */
+  overflow-y: visible; 
   padding: var(--space-md) var(--space-2xs) var(--space-lg);
-  scrollbar-width: thin;
-  scrollbar-color: oklch(80% 0.022 81) transparent;
 }
 
 .message-list {
@@ -262,10 +266,10 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-sm);
   align-items: center;
-  align-self: start;
-  width: min(100%, 44rem);
+  
+  width: min(calc(100% - 2 * var(--space-xl)), 44rem);
   min-height: 5rem;
-  margin-block-start: var(--space-3xl);
+  margin-block-start: 0;
   padding: var(--space-sm);
   border: 1px solid var(--border-quiet);
   border-radius: var(--radius-control);
@@ -275,7 +279,6 @@
     background-color 180ms var(--ease-out-quart),
     border-color 180ms var(--ease-out-quart),
     box-shadow 180ms var(--ease-out-quart);
-  animation: composer-arrive 780ms var(--ease-out-quint) 480ms both;
 }
 
 .composer:focus-within {
@@ -632,5 +635,9 @@
     min-width: 5rem;
     padding-inline: var(--space-md);
   }
+
+  :has(.chat-surface.is-active) .app-header {
+    display: none;
+    }
 }
 
