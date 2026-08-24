@@ -30,6 +30,10 @@
   height: 2.75rem;
   object-fit: contain;
   filter: drop-shadow(0 0.45rem 0.9rem oklch(63% 0.08 79 / 12%));
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .app-title {
