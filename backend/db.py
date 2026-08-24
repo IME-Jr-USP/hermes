@@ -167,6 +167,7 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
             metadata[k] = None
             logger.warning("Chave '%s' dos metadados de '%s' é lista vazia (foi convertida para None)", k, disciplina)
 
+    print(metadata)  # TODO
     return metadata
 
 
