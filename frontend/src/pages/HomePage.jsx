@@ -93,7 +93,10 @@ function HomePage({ onSearch }) {
 							<button
 								className="example-query"
 								type="button"
-								onClick={() => setQuery(example)}
+								onClick={() => {
+									setQuery(example);
+									textareaRef.current?.focus();
+								}}
 							>
 								<span>{example}</span>
 								<ChevronRight size={16} />
