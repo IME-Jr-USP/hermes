@@ -6,7 +6,8 @@
 
 	--color-primary: #d97706;
 	--color-primary-hover: #b96305;
-	--color-primary-light: #fed7aa;
+	--color-primary-light: #ffedd5;
+	--color-primary-muted: #b8b2a9;
 
 	--color-text: #2b2a27;
 	--color-text-muted: #6b6862;
@@ -20,13 +21,15 @@
 	--font-family-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
 	--font-family-sans: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
 
-	--font-size-xs: 0.6875rem; /* 11px */
-	--font-size-sm: 0.8125rem; /* 13px */
+	--font-size-xs: 0.75rem; /* 12px */
+	--font-size-sm: 0.875rem; /* 14px */
 	--font-size-base: 1rem; /* 16px */
 	--font-size-lg: 1.125rem; /* 18px */
 	--font-size-xl: 1.25rem; /* 20px */
 	--font-size-2xl: 1.5rem; /* 24px */
 	--font-size-3xl: 2rem; /* 32px */
+	--font-size-4xl: 2.25rem; /* 36px */
+	--font-size-5xl: 3rem; /* 48px */
 
 	--font-weight-normal: 400;
 	--font-weight-medium: 500;
@@ -45,8 +48,8 @@
 	--shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
 	--shadow-md: 0 2px 6px rgb(0 0 0 / 5%);
 
-	/* Largura máxima de conteúdo */
-	--content-width: 960px;
+	/* Tamanhos */
+	--header-height: 4rem;
 }
 
 *,
@@ -116,6 +119,9 @@ button {
 
 textarea {
 	resize: vertical;
+}
+textarea:focus {
+	outline: none;
 }
 
 a {
