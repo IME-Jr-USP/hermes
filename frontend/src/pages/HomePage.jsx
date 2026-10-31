@@ -53,6 +53,7 @@ function HomePage({ onSearch }) {
 
 				<form className="search-form" onSubmit={handleSubmit}>
 					<textarea
+						autoFocus
 						ref={textareaRef}
 						className="search-input"
 						value={query}
