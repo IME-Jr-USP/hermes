@@ -94,16 +94,6 @@ function AboutPage() {
 						</p>
 					</div>
 				</section>
-				<section className="about-section">
-					<span className="about-section-meta">Exemplo Prático</span>
-					<h2>Como um estudante utiliza o Hermes</h2>
-
-					<p>
-						O estudante formula objetivos acadêmicos com o contexto do seu percurso
-						individual, sem necessidade de memorizar previamente siglas regimentais ou
-						códigos departamentais:
-					</p>
-				</section>
 				<section className="about-disclaimer">
 					<h2>Isenção de Responsabilidade & Verificação</h2>
 					<p>
