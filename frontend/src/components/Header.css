@@ -27,7 +27,7 @@
 }
 
 .header-brand:hover {
-	cursor: default;
+	cursor: pointer;
 }
 
 .header-logo {
