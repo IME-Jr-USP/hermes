@@ -94,6 +94,7 @@
 .search-input {
 	width: 100%;
 	min-height: 6rem;
+	max-height: 15rem;
 	padding: 0 0 0.7rem 0;
 
 	border: none;
@@ -105,9 +106,9 @@
 	font-size: var(--font-size-base);
 	line-height: var(--line-height-relaxed);
 
-	field-sizing: content;
 	resize: none;
-	overflow-y: hidden;
+	overflow-y: auto;
+	field-sizing: content;
 }
 
 .search-input::placeholder {
