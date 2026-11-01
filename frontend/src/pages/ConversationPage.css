@@ -35,6 +35,10 @@
 	animation-iteration-count: 1;
 }
 
+.user-query p {
+	white-space: pre-wrap;
+}
+
 .user-query-header {
 	margin-bottom: 0.3rem;
 

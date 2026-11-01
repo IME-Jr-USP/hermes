@@ -64,6 +64,16 @@ function HomePage() {
 						onChange={(event) => setQuery(event.target.value)}
 						placeholder="Ex: Procuro optativas livres sobre Inteligência Artificial ou Ética na USP às quintas-feiras à noite..."
 						rows={2}
+						onKeyDown={(event) => {
+							if (
+								event.key === 'Enter' &&
+								!event.shiftKey &&
+								!event.nativeEvent.isComposing
+							) {
+								event.preventDefault();
+								event.currentTarget.form?.requestSubmit();
+							}
+						}}
 					/>
 
 					<div className="search-form-bottom">

@@ -214,6 +214,16 @@ function ConversationInput({ loading, onSubmit }) {
 					}
 					aria-label="Enviar mensagem ao Hermes"
 					rows={1}
+					onKeyDown={(event) => {
+						if (
+							event.key === 'Enter' &&
+							!event.shiftKey &&
+							!event.nativeEvent.isComposing
+						) {
+							event.preventDefault();
+							event.currentTarget.form?.requestSubmit();
+						}
+					}}
 					disabled={loading}
 				/>
 
