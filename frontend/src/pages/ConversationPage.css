@@ -289,9 +289,51 @@
 	margin: 0.35rem 0;
 }
 
+/* Checklist */
+.assistant-response ul:has(> li > input[type='checkbox']) {
+	padding-left: 0;
+	list-style: none;
+}
+
+.assistant-response li:has(> input[type='checkbox']) {
+	padding-left: 0;
+}
+
+.assistant-response li:has(> input[type='checkbox']) > ul,
+.assistant-response li:has(> input[type='checkbox']) > ol {
+	padding-left: calc(1.725rem + 1.5rem);
+}
+
+.assistant-response li:has(> input[type='checkbox']) > ul:has(> li > input[type='checkbox']) {
+	padding-left: 1.725rem;
+}
+
 .assistant-response input[type='checkbox'] {
-	margin-right: 0.45rem;
-	accent-color: var(--color-primary);
+	appearance: none;
+	-webkit-appearance: none;
+	width: 1.125rem;
+	height: 1.125rem;
+	margin: 0 0.6rem 0 0;
+	vertical-align: -0.2em;
+
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+
+	background-color: var(--color-surface-alt);
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 0.8rem;
+	opacity: 1;
+}
+
+.assistant-response input[type='checkbox']:checked {
+	border-color: var(--color-primary);
+	background-color: var(--color-primary);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+}
+
+.assistant-response li:has(> input[type='checkbox']:checked) {
+	color: var(--color-text-muted);
 }
 
 /* --- Citação e separador ------------------------------------------------- */
@@ -331,6 +373,7 @@
 	border-spacing: 0;
 	border-radius: var(--radius-lg);
 	overflow: hidden;
+	table-layout: fixed;
 
 	background-color: var(--color-surface-alt);
 	box-shadow: var(--shadow-sm);
@@ -346,6 +389,7 @@
 	border-bottom: 1px solid var(--color-border);
 	text-align: left;
 	vertical-align: top;
+	overflow-wrap: anywhere;
 }
 
 .assistant-response th {
@@ -409,12 +453,15 @@
 
 .assistant-response img {
 	display: block;
-	max-width: 100%;
+	width: auto;
 	height: auto;
-	margin: 1.25rem 0;
+	max-width: min(100%, 28rem);
+	max-height: 24rem;
+	margin: 1.25rem auto;
 
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
 }
 
 /* ==========================================================================

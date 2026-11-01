@@ -16,71 +16,126 @@ import './ConversationPage.css';
 ======================================== */
 
 const DEMO_RESPONSE = `
-Encontrei **3 disciplinas** que correspondem aos seus interesses em inteligência artificial e aprendizado de máquina. Todas possuem atividades no período da tarde e podem ser consideradas para sua grade.
+# Guia completo de disciplinas de IA
+
+Encontrei **3 disciplinas** que combinam com os seus interesses em *inteligência artificial* e ~~programação básica~~ aprendizado de máquina. Todas têm atividades no período da tarde e podem entrar na sua grade. Veja também o [catálogo de disciplinas](https://example.com/catalogo) para mais detalhes, ou acesse direto https://example.com/matricula.
+
+Este parágrafo tem uma segunda linha logo abaixo, separada por quebra simples.
+Ela deve aparecer na linha seguinte, dentro do mesmo parágrafo.
+
+---
 
 ## Disciplinas recomendadas
 
 ### 1. Introdução ao Aprendizado de Máquina
 
-**IME — Instituto de Matemática e Estatística**
+#### IME — Instituto de Matemática e Estatística
 
 | Informação | Detalhes |
-|---|---|
+| --- | --- |
 | Código | MAC0460 |
 | Créditos | 4 créditos-aula |
 | Horário | Segundas e quartas, 14h–15h40 |
+| Pré-requisitos | MAC0110 e MAE0121 |
 
-Excelente opção para aprofundar seus conhecimentos em **modelos estatísticos, algoritmos de aprendizado e programação em Python**.
+Excelente opção para aprofundar seus conhecimentos em **modelos estatísticos**, *algoritmos de aprendizado* e programação em Python.
 
 - **Área:** Inteligência Artificial
 - **Nível:** Intermediário
-- **Compatibilidade:** Alta
+- **Avaliação:**
+  - Duas provas escritas
+  - Listas de exercícios semanais
+    - Entrega pelo sistema da disciplina
+    - Resolução individual
+  - Projeto final em dupla
 
-[Consultar disciplina no JúpiterWeb →](https://uspdigital.usp.br/jupiterweb/)
+### 2. Redes Neurais e Aprendizado Profundo
+
+#### IME — Instituto de Matemática e Estatística
+
+| Informação | Detalhes | Observação |
+| --- | --- | --- |
+| Código | MAC5921 | Pós-graduação |
+| Créditos | 6 créditos-aula | Com trabalho |
+| Horário | Terças e quintas, 14h–15h40 | Sala 232 |
+
+Esta disciplina exige boa base em álgebra linear. Os passos recomendados para se preparar são:
+
+1. Revisar álgebra linear e cálculo multivariável
+2. Praticar Python com NumPy
+   1. Operações com matrizes
+   2. Gradiente e derivadas parciais
+3. Ler o capítulo inicial do livro-texto
+4. Conversar com o professor antes da matrícula
+
+> **Dica:** disciplinas de pós-graduação podem ser cursadas como aluno especial, mas as vagas são limitadas e dependem de aprovação do docente.
+>
+> > Confirme sempre no JúpiterWeb antes da matrícula.
+
+### 3. Visão Computacional
+
+#### IME — Instituto de Matemática e Estatística
+
+Veja um exemplo de como processar imagens com a biblioteca \`OpenCV\`, usada ao longo do curso:
+
+\`\`\`python
+import cv2
+
+imagem = cv2.imread("foto.jpg")
+cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+bordas = cv2.Canny(cinza, 100, 200)
+
+cv2.imwrite("bordas.png", bordas)
+print(f"Dimensões: {bordas.shape}")
+\`\`\`
+
+Para instalar a dependência, use o terminal:
+
+\`\`\`bash
+pip install opencv-python numpy
+\`\`\`
 
 ---
 
-### 2. Ética e Inteligência Artificial
+## Exemplos de imagens
 
-**FFLCH — Faculdade de Filosofia, Letras e Ciências Humanas**
+Imagem **grande e panorâmica** (deve ser limitada pela largura máxima):
 
-| Informação | Detalhes |
-|---|---|
-| Código | FLF0389 |
-| Créditos | 4 créditos-aula |
-| Horário | Quintas-feiras, 14h–17h40 |
+![Imagem panorâmica de exemplo](https://placehold.co/1600x700/png?text=Panoramica+1600x700)
 
-Aborda os impactos sociais de sistemas automatizados, incluindo **justiça algorítmica, vieses em modelos e regulação de inteligência artificial**.
+Imagem **vertical** (deve ser limitada pela altura máxima):
 
-É uma boa opção para complementar a formação técnica com uma perspectiva interdisciplinar.
+![Imagem vertical de exemplo](https://placehold.co/600x1200/png?text=Vertical+600x1200)
 
-[Consultar disciplina no JúpiterWeb →](https://uspdigital.usp.br/jupiterweb/)
+Imagem **pequena** (deve manter o tamanho natural, centralizada):
+
+![Imagem pequena de exemplo](https://placehold.co/160x160/png?text=160x160)
 
 ---
 
-### 3. Sistemas Inteligentes e Automação
+## Checklist para a matrícula
 
-**POLI — Escola Politécnica**
+- [x] Verificar pré-requisitos no JúpiterWeb
+- [x] Conferir conflitos de horário
+- [ ] Falar com a coordenação sobre vagas
+	- [ ] Item 1
+	- [ ] Item 2
+		- Subitem 1
+		- Subitem 2
+		- Subitem 3
+			- [ ] Subtarefa 1
+		- Subitem 4
+- [ ] Confirmar a matrícula dentro do prazo
 
-| Informação | Detalhes |
-|---|---|
-| Código | PCS3542 |
-| Créditos | 4 créditos-aula |
-| Horário | Sextas-feiras, 13h15–16h50 |
+## Resumo comparativo
 
-Apresenta aplicações de sistemas inteligentes em problemas de engenharia, com foco em **automação, visão computacional e agentes inteligentes**.
+| Disciplina | Nível | Créditos | Dificuldade |
+| :--- | :---: | ---: | :---: |
+| Introdução ao Aprendizado de Máquina | Graduação | 4 | Média |
+| Redes Neurais e Aprendizado Profundo | Pós-graduação | 6 | Alta |
+| Visão Computacional | Graduação | 4 | Média |
 
-[Consultar disciplina no JúpiterWeb →](https://uspdigital.usp.br/jupiterweb/)
-
----
-
-## Minha recomendação
-
-Considerando seu interesse em algoritmos e fundamentos de inteligência artificial, eu priorizaria **Introdução ao Aprendizado de Máquina**. Ela parece oferecer a conexão mais direta entre seus conhecimentos atuais de computação e os tópicos que você pretende estudar.
-
-A disciplina de Ética e Inteligência Artificial seria um bom complemento, especialmente para ampliar sua perspectiva sobre as aplicações e implicações dessas tecnologias.
-
-> **Atenção:** horários, pré-requisitos e disponibilidade de vagas podem mudar. Confirme os oferecimentos no JúpiterWeb antes de realizar sua matrícula.
+Se quiser, posso montar uma **grade semanal** com essas disciplinas ou buscar *alternativas* em outros institutos. Use \`Ctrl + F\` na página do catálogo para filtrar por código.
 `;
 
 async function getRecommendations(query) {
