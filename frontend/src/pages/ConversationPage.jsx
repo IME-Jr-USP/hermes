@@ -133,7 +133,7 @@ Imagem **pequena** (deve manter o tamanho natural, centralizada):
 | :--- | :---: | ---: | :---: |
 | Introdução ao Aprendizado de Máquina | Graduação | 4 | Média |
 | Redes Neurais e Aprendizado Profundo | Pós-graduação | 6 | Alta |
-| Visão Computacional | Graduação | 4 | MédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédiaMédia |
+| Visão Computacional | Graduação | 4 | Média |
 
 Se quiser, posso montar uma **grade semanal** com essas disciplinas ou buscar *alternativas* em outros institutos. Use \`Ctrl + F\` na página do catálogo para filtrar por código.
 `;

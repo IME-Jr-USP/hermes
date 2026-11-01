@@ -1,5 +1,10 @@
+/* ==========================================================================
+   Variáveis (design tokens)
+   ========================================================================== */
+
 :root {
-	/* Cores */
+	/* --- Cores --------------------------------------------------------------- */
+
 	--color-background: #fafaf9;
 	--color-surface: #fcfcfb;
 	--color-surface-alt: #ffffff;
@@ -16,7 +21,8 @@
 	--color-border: #e7e5e1;
 	--color-border-strong: #dedbd5;
 
-	/* Tipografia */
+	/* --- Tipografia ---------------------------------------------------------- */
+
 	--font-family-heading: 'Newsreader', Georgia, 'Times New Roman', serif;
 	--font-family-body: 'Source Serif 4', Georgia, 'Times New Roman', serif;
 	--font-family-sans: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
@@ -39,19 +45,25 @@
 	--line-height-normal: 1.5;
 	--line-height-relaxed: 1.7;
 
-	/* Bordas e Sombras */
-	--radius-sm: 4px;
-	--radius-md: 6px;
-	--radius-lg: 8px;
+	/* --- Bordas e sombras ---------------------------------------------------- */
+
+	--radius-sm: 0.25rem; /* 4px */
+	--radius-md: 0.375rem; /* 6px */
+	--radius-lg: 0.5rem; /* 8px */
 	--radius-full: 9999px;
 
 	--shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
 	--shadow-md: 0 2px 6px rgb(0 0 0 / 5%);
 
-	/* Tamanhos */
+	/* --- Tamanhos ------------------------------------------------------------ */
+
 	--header-height: 4rem;
 	--conversation-bottom-height: 7rem;
 }
+
+/* ==========================================================================
+   Reset e base
+   ========================================================================== */
 
 *,
 *::before,
@@ -59,13 +71,14 @@
 	box-sizing: border-box;
 }
 
+/* Define a base de 1rem = 16px usada em todo o projeto */
 html {
 	font-size: 16px;
 	scroll-behavior: smooth;
 }
 
 body {
-	min-width: 320px;
+	min-width: 20rem;
 	min-height: 100vh;
 	margin: 0;
 
@@ -84,6 +97,10 @@ body {
 #root {
 	min-height: 100vh;
 }
+
+/* ==========================================================================
+   Tipografia
+   ========================================================================== */
 
 h1,
 h2,
@@ -106,6 +123,10 @@ h6 {
 	line-height: var(--line-height-tight);
 }
 
+/* ==========================================================================
+   Formulários
+   ========================================================================== */
+
 button,
 input,
 textarea,
@@ -121,9 +142,14 @@ button {
 textarea {
 	resize: vertical;
 }
+
 textarea:focus {
 	outline: none;
 }
+
+/* ==========================================================================
+   Links e mídia
+   ========================================================================== */
 
 a {
 	color: inherit;
@@ -138,12 +164,55 @@ canvas {
 	max-width: 100%;
 }
 
+/* ==========================================================================
+   Foco e seleção
+   ========================================================================== */
+
 :focus-visible {
 	outline: 2px solid var(--color-primary);
-	outline-offset: 2px;
+	outline-offset: 0.125rem;
 }
 
 ::selection {
 	background-color: var(--color-primary-light);
 	color: var(--color-text);
+}
+
+/* ==========================================================================
+   Barras de rolagem
+   ========================================================================== */
+
+/* --- Padrão (navegadores atuais) ----------------------------------------- */
+
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-primary-muted) transparent; /* thumb | track */
+}
+
+/* --- Fallback (navegadores sem suporte a scrollbar-color) ---------------- */
+
+@supports not (scrollbar-color: auto) {
+	::-webkit-scrollbar {
+		width: 0.625rem;
+		height: 0.625rem;
+	}
+
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		border: 2px solid var(--color-background);
+		border-radius: var(--radius-full);
+		background-color: var(--color-primary-muted);
+		background-clip: padding-box;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background-color: var(--color-text-subtle);
+	}
+
+	::-webkit-scrollbar-corner {
+		background: transparent;
+	}
 }
