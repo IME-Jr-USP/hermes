@@ -151,7 +151,18 @@ function LoadingSkeleton() {
 function AssistantResponse({ response }) {
 	return (
 		<div className="assistant-response">
-			<ReactMarkdown remarkPlugins={[remarkGfm]}>{response}</ReactMarkdown>
+			<ReactMarkdown
+				remarkPlugins={[remarkGfm]}
+				components={{
+					a: ({ href, children, ...props }) => (
+						<a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+							{children}
+						</a>
+					),
+				}}
+			>
+				{response}
+			</ReactMarkdown>
 		</div>
 	);
 }
