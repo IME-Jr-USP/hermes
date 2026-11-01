@@ -1,0 +1,699 @@
+/* ==========================================================================
+   Layout da página
+   ========================================================================== */
+
+.conversation-page {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+
+	padding-top: var(--header-height);
+	min-height: calc(100vh - var(--header-height));
+}
+
+.conversation-main {
+	width: min(40rem, 100%);
+	padding: 1.5rem 1rem calc(var(--conversation-bottom-height) + 3rem) 1rem;
+}
+
+/* ==========================================================================
+   Pergunta do usuário
+   ========================================================================== */
+
+.user-query {
+	width: min(28rem, 100%);
+	padding: 0.9rem;
+
+	margin-left: auto;
+	scroll-margin-top: calc(var(--header-height, 0px) + 1rem);
+
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+
+	background-color: var(--color-surface);
+	box-shadow: var(--shadow-sm);
+	justify-self: flex-end;
+
+	animation: show-query 0.5s;
+	animation-iteration-count: 1;
+}
+
+.user-query p {
+	white-space: pre-wrap;
+}
+
+.user-query-header {
+	margin-bottom: 0.3rem;
+
+	color: var(--color-text-muted);
+	font-family: var(--font-family-sans);
+	font-size: var(--font-size-xs);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+.user-query-header span:first-child {
+	color: var(--color-primary);
+	font-weight: var(--font-weight-medium);
+}
+
+.user-query p {
+	color: var(--color-text);
+	font-family: var(--font-family-body);
+	font-size: var(--font-size-sm);
+	overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Divisor da conversa
+   ========================================================================== */
+
+.conversation-divider {
+	width: 3rem;
+	height: 1px;
+	margin: 1.5rem auto;
+
+	background-color: var(--color-border-strong);
+}
+
+/* ==========================================================================
+   Cabeçalho do assistente
+   ========================================================================== */
+
+.assistant-heading {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+
+	min-width: 0;
+	font-family: var(--font-family-heading);
+}
+
+.assistant-indicator {
+	position: relative;
+	flex-shrink: 0;
+
+	width: 0.5rem;
+	height: 0.5rem;
+	margin-top: 0.5rem; /* (altura da linha 1.5rem − 0.5rem do indicador) / 2 */
+	margin-right: 0.125rem;
+
+	border-radius: 50%;
+	background-color: var(--color-primary);
+	transform: translateY(-0.125rem);
+}
+
+.assistant-indicator.is-loading {
+	animation: assistant-pulse 1s ease-out infinite;
+}
+
+.assistant-name {
+	flex-shrink: 0;
+
+	color: var(--color-text);
+	font-weight: var(--font-weight-medium);
+}
+
+.assistant-status {
+	min-width: 0;
+
+	color: var(--color-text-muted);
+	font-style: italic;
+	overflow-wrap: anywhere;
+}
+
+/* ==========================================================================
+   Espaçamento compartilhado (loading, resposta e erro)
+   ========================================================================== */
+
+.loading-skeleton,
+.assistant-response,
+.conversation-error {
+	margin-top: 0.8rem;
+}
+
+/* ==========================================================================
+   Estado de carregamento
+   ========================================================================== */
+
+.loading-skeleton {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+/* ==========================================================================
+   Resposta do assistente (conteúdo markdown)
+   ========================================================================== */
+
+.conversation-turn + .conversation-turn {
+	margin-top: 3rem;
+	padding-top: 1.5rem;
+	border-top: 1px solid var(--color-border);
+	min-height: 100vh;
+}
+
+/* --- Base ---------------------------------------------------------------- */
+
+.assistant-response {
+	min-width: 0;
+
+	color: var(--color-text);
+	font-family: var(--font-family-body);
+	font-size: var(--font-size-base);
+	line-height: var(--line-height-relaxed);
+	-webkit-font-smoothing: antialiased;
+
+	animation: reveal-down 1.5s;
+	animation-iteration-count: 1;
+}
+
+.assistant-response > :first-child {
+	margin-top: 0;
+}
+
+.assistant-response > :last-child {
+	margin-bottom: 0;
+}
+
+/* --- Títulos ------------------------------------------------------------- */
+
+.assistant-response h1,
+.assistant-response h2,
+.assistant-response h3,
+.assistant-response h4 {
+	color: var(--color-text);
+	font-family: var(--font-family-heading);
+	font-weight: var(--font-weight-medium);
+	line-height: var(--line-height-tight);
+	text-wrap: balance;
+}
+
+.assistant-response h1 {
+	margin: 2rem 0 0.75rem;
+	font-size: var(--font-size-3xl);
+	letter-spacing: -0.015em;
+}
+
+.assistant-response h2 {
+	margin: 1.75rem 0 0.75rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 1px solid var(--color-border);
+	font-size: var(--font-size-2xl);
+	letter-spacing: -0.01em;
+}
+
+.assistant-response h3 {
+	margin: 1.5rem 0 0.4rem;
+	font-size: var(--font-size-xl);
+	letter-spacing: -0.005em;
+}
+
+/* h4 funciona como um rótulo discreto, no mesmo estilo de .user-query-header */
+.assistant-response h4 {
+	margin: 1.25rem 0 0.5rem;
+	color: var(--color-text-muted);
+	font-family: var(--font-family-sans);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.assistant-response h3 + h4 {
+	margin-top: 0.25rem;
+}
+
+/* --- Texto --------------------------------------------------------------- */
+
+.assistant-response p {
+	margin: 0.875rem 0;
+	text-wrap: pretty;
+}
+
+.assistant-response strong {
+	color: var(--color-text);
+	font-weight: var(--font-weight-semibold);
+}
+
+.assistant-response em,
+.assistant-response del {
+	color: var(--color-text-muted);
+}
+
+/* --- Links --------------------------------------------------------------- */
+
+.assistant-response a {
+	text-decoration: underline;
+	text-decoration-color: var(--color-text);
+	text-decoration-style: dotted;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.2rem;
+	transition:
+		color 0.15s ease,
+		text-decoration-color 0.15s ease;
+}
+
+.assistant-response a:hover {
+	color: var(--color-primary-hover);
+	text-decoration-color: currentColor;
+}
+
+/* --- Listas -------------------------------------------------------------- */
+
+.assistant-response ul,
+.assistant-response ol {
+	margin: 0.875rem 0;
+	padding-left: 1.5rem;
+}
+
+.assistant-response li {
+	margin: 0.35rem 0;
+	padding-left: 0.25rem;
+}
+
+.assistant-response li::marker {
+	color: var(--color-primary);
+}
+
+.assistant-response ol > li::marker {
+	font-family: var(--font-family-sans);
+	font-size: 0.9em;
+	font-weight: var(--font-weight-semibold);
+}
+
+.assistant-response li > p {
+	margin: 0.25rem 0;
+}
+
+.assistant-response li ul,
+.assistant-response li ol {
+	margin: 0.35rem 0;
+}
+
+/* Checklist */
+.assistant-response ul:has(> li > input[type='checkbox']) {
+	padding-left: 0;
+	list-style: none;
+}
+
+.assistant-response li:has(> input[type='checkbox']) {
+	padding-left: 0;
+}
+
+.assistant-response li:has(> input[type='checkbox']) > ul,
+.assistant-response li:has(> input[type='checkbox']) > ol {
+	padding-left: calc(1.725rem + 1.5rem);
+}
+
+.assistant-response li:has(> input[type='checkbox']) > ul:has(> li > input[type='checkbox']) {
+	padding-left: 1.725rem;
+}
+
+.assistant-response input[type='checkbox'] {
+	appearance: none;
+	-webkit-appearance: none;
+	width: 1.125rem;
+	height: 1.125rem;
+	margin: 0 0.6rem 0 0;
+	vertical-align: -0.2em;
+
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+
+	background-color: var(--color-surface-alt);
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: 0.8rem;
+	opacity: 1;
+}
+
+.assistant-response input[type='checkbox']:checked {
+	border-color: var(--color-primary);
+	background-color: var(--color-primary);
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
+}
+
+.assistant-response li:has(> input[type='checkbox']:checked) {
+	color: var(--color-text-muted);
+}
+
+/* --- Citação e separador ------------------------------------------------- */
+
+.assistant-response blockquote {
+	margin: 1.25rem 0;
+	padding: 0.125rem 0 0.125rem 1rem;
+
+	border-left: 2px solid var(--color-primary);
+
+	color: var(--color-text-muted);
+	font-style: italic;
+}
+
+.assistant-response blockquote p {
+	margin: 0.5rem 0;
+}
+
+/* Mesmo estilo do .conversation-divider */
+.assistant-response hr {
+	width: 3rem;
+	height: 1px;
+	margin: 1.5rem auto;
+
+	border: 0;
+	background-color: var(--color-border-strong);
+}
+
+/* --- Tabelas ------------------------------------------------------------- */
+
+.assistant-response table {
+	width: 100%;
+	margin: 1.25rem 0;
+
+	border: 1px solid var(--color-border);
+	border-collapse: separate;
+	border-spacing: 0;
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	table-layout: fixed;
+
+	background-color: var(--color-surface-alt);
+	box-shadow: var(--shadow-sm);
+
+	font-size: 0.95rem;
+	line-height: var(--line-height-normal);
+}
+
+.assistant-response th,
+.assistant-response td {
+	padding: 0.625rem 1rem;
+
+	border-bottom: 1px solid var(--color-border);
+	text-align: left;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+
+.assistant-response th {
+	background-color: var(--color-background);
+
+	color: var(--color-text-muted);
+	font-family: var(--font-family-sans);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.assistant-response td {
+	color: var(--color-text);
+}
+
+.assistant-response td:first-child {
+	color: var(--color-text-muted);
+}
+
+.assistant-response tbody tr:last-child td,
+.assistant-response table > tr:last-child td {
+	border-bottom: 0;
+}
+
+/* --- Código -------------------------------------------------------------- */
+
+.assistant-response :not(pre) > code {
+	padding: 0.1rem 0.35rem;
+
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+
+	background-color: var(--color-surface-alt);
+	color: var(--color-text);
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	font-size: 0.85em;
+}
+
+.assistant-response pre {
+	margin: 1.25rem 0;
+	padding: 1rem 1.125rem;
+
+	overflow-x: auto;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+
+	background-color: var(--color-surface-alt);
+	box-shadow: var(--shadow-sm);
+	line-height: 1.6;
+}
+
+.assistant-response pre code {
+	color: var(--color-text);
+	font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+	font-size: 0.85rem;
+}
+
+/* --- Imagens ------------------------------------------------------------- */
+
+.assistant-response img {
+	display: block;
+	width: auto;
+	height: auto;
+	max-width: min(100%, 28rem);
+	max-height: 24rem;
+	margin: 1.25rem auto;
+
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Mensagem de erro
+   ========================================================================== */
+
+.conversation-error {
+	color: var(--color-text-muted);
+	font-family: var(--font-family-body);
+	font-size: var(--font-size-sm);
+}
+
+.conversation-error button {
+	margin-top: 1rem;
+	padding: 0.375rem 0.75rem;
+
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+
+	background-color: var(--color-surface);
+	color: var(--color-text);
+
+	cursor: pointer;
+}
+
+/* ==========================================================================
+   Barra inferior
+   ========================================================================== */
+
+/* --- Scroll to bottom ------------------------------------------------------ */
+
+.scroll-to-bottom {
+	position: absolute;
+	bottom: calc(100% - 0.8rem);
+	left: 50%;
+	transform: translateX(-50%);
+
+	display: grid;
+	place-items: center;
+
+	width: 2.5rem;
+	height: 2.5rem;
+	padding: 0;
+
+	color: var(--color-text);
+	background: white;
+	border: 1px solid var(--color-border);
+	border-radius: 50%;
+	box-shadow: var(--shadow-md);
+
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		transform 0.15s ease;
+}
+
+.scroll-to-bottom:hover {
+	background: #f5f5f5;
+	transform: translateY(-0.5rem) translateX(-50%);
+}
+
+/* --- Container fixo ------------------------------------------------------ */
+
+.conversation-bottom {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+
+	width: 100%;
+	min-height: var(--conversation-bottom-height);
+	padding: 2.5rem 1rem 0 1rem;
+
+	background: var(--color-background);
+	background: linear-gradient(0deg, var(--color-background) 70%, transparent 100%);
+}
+
+/* --- Campo de entrada ---------------------------------------------------- */
+
+.conversation-input {
+	display: flex;
+	align-items: center;
+	gap: 0.8rem;
+
+	width: min(40rem, 100%);
+	min-height: 3.5rem;
+	padding: 0.5rem 0.6rem 0.5rem 0.9rem;
+
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-md);
+
+	background-color: var(--color-surface);
+	box-shadow: var(--shadow-sm);
+
+	transition:
+		border-color 0.15s ease,
+		box-shadow 0.15s ease;
+}
+
+.conversation-input:focus-within {
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.conversation-input-icon {
+	flex-shrink: 0;
+	color: var(--color-text-subtle);
+}
+
+.conversation-input textarea {
+	width: 100%;
+	min-width: 0;
+	padding: 0;
+	min-height: 1.5em;
+	max-height: 8rem;
+
+	border: none;
+	outline: none;
+	background: transparent;
+
+	color: var(--color-text);
+	font-family: var(--font-family-body);
+	font-size: var(--font-size-base);
+	line-height: var(--line-height-normal);
+
+	resize: none;
+	overflow-y: auto;
+	field-sizing: content;
+}
+
+.conversation-input textarea::placeholder {
+	color: var(--color-text-muted);
+	font-style: italic;
+	opacity: 0.85;
+}
+
+.conversation-input textarea:disabled {
+	cursor: not-allowed;
+}
+
+/* --- Botão de envio ------------------------------------------------------ */
+
+.conversation-input button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+
+	width: 2rem;
+	height: 2rem;
+
+	border: 1px solid transparent;
+	border-radius: var(--radius-sm);
+
+	background-color: var(--color-primary);
+	color: white;
+
+	cursor: pointer;
+}
+
+.conversation-input button:disabled {
+	border-color: var(--color-border);
+	background-color: var(--color-background);
+	color: var(--color-text-subtle);
+	cursor: not-allowed;
+}
+
+/* --- Aviso legal --------------------------------------------------------- */
+
+.conversation-disclaimer {
+	margin-block: 0.5rem 0.7rem;
+
+	color: var(--color-text-muted);
+	font-family: var(--font-family-sans);
+	font-size: var(--font-size-xs);
+	line-height: 1.5;
+	text-align: center;
+}
+
+/* ==========================================================================
+   Animações (keyframes)
+   ========================================================================== */
+
+@keyframes show-query {
+	from {
+		transform: translateY(0.625rem);
+		opacity: 0;
+	}
+	to {
+		transform: translate(0);
+		opacity: 1;
+	}
+}
+
+@keyframes reveal-down {
+	from {
+		clip-path: inset(0 0 100% 0);
+	}
+	to {
+		clip-path: inset(0);
+	}
+}
+
+@keyframes assistant-pulse {
+	0% {
+		box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.4);
+	}
+	100% {
+		box-shadow: 0 0 0 0.625rem rgba(217, 119, 6, 0);
+	}
+}
+
+/* ==========================================================================
+   Responsividade
+   ========================================================================== */
+
+@media (max-width: 30rem) {
+	.user-query {
+		padding: 0.7rem 0.75rem;
+	}
+
+	.loading-skeleton {
+		padding-inline: 0.5rem;
+	}
+
+	.conversation-bottom {
+		padding-top: 1.25rem;
+	}
+}
