@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import logo from '../assets/logo.svg';
 import './Header.css';
 
@@ -8,10 +8,10 @@ function Header() {
 
 	return (
 		<header className="header">
-			<Link to="/" className="header-brand">
+			<div className="header-brand">
 				<img className="header-logo" src={logo} alt="" />
 				<span className="header-name">Hermes</span>
-			</Link>
+			</div>
 
 			<nav className="header-nav">
 				<a href="/sobre">Sobre</a>
