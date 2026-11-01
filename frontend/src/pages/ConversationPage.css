@@ -242,14 +242,14 @@
 /* --- Links --------------------------------------------------------------- */
 
 .assistant-response a {
-	color: var(--color-primary);
 	text-decoration: underline;
-	text-decoration-color: var(--color-border-strong);
+	text-decoration-color: var(--color-text);
+	text-decoration-style: dotted;
 	text-decoration-thickness: 1px;
 	text-underline-offset: 0.2rem;
 	transition:
-		color 150ms ease,
-		text-decoration-color 150ms ease;
+		color 0.15s ease,
+		text-decoration-color 0.15s ease;
 }
 
 .assistant-response a:hover {
