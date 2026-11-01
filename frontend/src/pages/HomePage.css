@@ -104,6 +104,7 @@
 	font-size: var(--font-size-base);
 	line-height: var(--line-height-relaxed);
 
+	field-sizing: content;
 	resize: none;
 	overflow-y: hidden;
 }

@@ -1,5 +1,5 @@
 import { ArrowRight, BookOpen, ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import './HomePage.css';
@@ -26,15 +26,6 @@ function HomePage() {
 			state: { query: search },
 		});
 	}
-
-	useEffect(() => {
-		const textarea = textareaRef.current;
-
-		if (!textarea) return;
-
-		textarea.style.height = 'auto';
-		textarea.style.height = `${textarea.scrollHeight}px`;
-	}, [query]);
 
 	return (
 		<div className="home-page">

@@ -24,12 +24,10 @@
 
 	flex-shrink: 0;
 	white-space: nowrap;
-	transition: opacity 0.15s ease;
 }
 
 .header-brand:hover {
-	opacity: 0.75;
-	cursor: pointer;
+	cursor: default;
 }
 
 .header-logo {
