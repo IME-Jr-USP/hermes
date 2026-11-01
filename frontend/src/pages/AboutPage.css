@@ -1,0 +1,25 @@
+.about-page {
+	display: flex;
+	flex-direction: column;
+
+	min-height: 100vh;
+	padding-top: var(--header-height);
+}
+
+.about-main {
+	flex: 1;
+
+	width: min(800px, calc(100% - 40px));
+	margin-inline: auto;
+	padding: 2.5rem 0 1.5rem 0;
+
+	font-size: var(--font-size-lg);
+}
+
+.about-main h1 {
+	margin: 1.75rem 0 0.75rem;
+	padding-bottom: 0.5rem;
+	border-bottom: 1px solid var(--color-border);
+	font-size: var(--font-size-3xl);
+	letter-spacing: -0.01em;
+}
