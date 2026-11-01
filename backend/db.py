@@ -7,14 +7,14 @@ import jupiterweb
 from chromadb.api import ClientAPI
 from chromadb.api.types import Metadata
 from chromadb.utils import embedding_functions
+from config import settings
 from constants import (
     DB_COLLECTION_NAME,
     DB_DISTANCE_METRIC,
-    DB_PATH,
-    DISCIPLINA_DOCUMENT_CHAVES,
-    EMBEDDING_DEVICE,
-    EMBEDDING_MODEL,
-    EMBEDDING_NORMALIZE,
+    DB_DOCUMENT_CHAVES,
+    DB_EMBEDDING_NORMALIZE,
+    DB_UPSERT_BATCH_SIZE,
+    MetaKey,
 )
 from jupiterweb import Disciplina, HorarioAula, Instituto, Oferecimento
 from utils import get_logger
@@ -32,8 +32,8 @@ def obter_client() -> ClientAPI:
 
     global _client
     if _client is None:
-        _client = chromadb.PersistentClient(path=DB_PATH)
-        logger.info("Client ChromaDB inicializado em '%s'", DB_PATH)
+        _client = chromadb.PersistentClient(path=str(settings.db_path))
+        logger.info("Client ChromaDB inicializado em '%s'", settings.db_path)
     return _client
 
 
@@ -48,9 +48,9 @@ def obter_banco_disciplinas() -> chromadb.Collection:
         client = obter_client()
 
         ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=EMBEDDING_MODEL,
-            device=EMBEDDING_DEVICE,
-            normalize_embeddings=EMBEDDING_NORMALIZE,
+            model_name=settings.embedding_model,
+            device=settings.embedding_device,
+            normalize_embeddings=DB_EMBEDDING_NORMALIZE,
         )
 
         _collection = client.get_or_create_collection(
@@ -75,41 +75,41 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
     dados = disciplina.obter_dados()
 
     metadata = {
-        "sigla": disciplina.sigla,
-        "instituto_nome": instituto.nome,
-        "instituto_abrev": instituto.abrev.upper(),
-        "instituto_codigo": instituto.codigo,
-        "instituto_campus": instituto.campus,
-        "departamento": dados.get("departamento", ""),
-        "nome": dados.get("nome", ""),
-        "nome_ingles": dados.get("nome ingles", ""),
-        "creditos_aula": dados.get("creditos aula", "0"),
-        "creditos_trabalho": dados.get("creditos trabalho", "0"),
-        "carga_horaria_total": dados.get("carga horaria total", "0"),
-        "tipo": dados.get("tipo", ""),
-        "ativacao": dados.get("ativacao", ""),
-        "desativacao": dados.get("desativacao", ""),
-        "ementa": dados.get("ementa", ""),
-        "objetivos": dados.get("objetivos", ""),
-        "conteudo_programatico": dados.get("conteudo programatico", ""),
-        "avaliacao_metodo": dados.get("instrumentos e criterios de avaliacao", {}).get("metodo de avaliacao", ""),
-        "avaliacao_criterio": dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
-        "avaliacao_norma_recup": dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
-        "docentes_responsaveis": dados.get("docente(s) responsavel(eis)", ""),
-        "url_principal": disciplina.url_principal,
-        "url_oferecimento": disciplina.url_oferecimento,
-        "url_requisitos": disciplina.url_requisitos,
-        "ultima_atualizacao": time.time(),
+        MetaKey.SIGLA: disciplina.sigla,
+        MetaKey.INSTITUTO_NOME: instituto.nome,
+        MetaKey.INSTITUTO_ABREV: instituto.abrev.upper(),
+        MetaKey.INSTITUTO_CODIGO: instituto.codigo,
+        MetaKey.INSTITUTO_CAMPUS: instituto.campus,
+        MetaKey.DEPARTAMENTO: dados.get("departamento", ""),
+        MetaKey.NOME: dados.get("nome", ""),
+        MetaKey.NOME_INGLES: dados.get("nome ingles", ""),
+        MetaKey.CREDITOS_AULA: dados.get("creditos aula", "0"),
+        MetaKey.CREDITOS_TRABALHO: dados.get("creditos trabalho", "0"),
+        MetaKey.CARGA_HORARIA_TOTAL: dados.get("carga horaria total", "0"),
+        MetaKey.TIPO: dados.get("tipo", ""),
+        MetaKey.ATIVACAO: dados.get("ativacao", ""),
+        MetaKey.DESATIVACAO: dados.get("desativacao", ""),
+        MetaKey.EMENTA: dados.get("ementa", ""),
+        MetaKey.OBJETIVOS: dados.get("objetivos", ""),
+        MetaKey.CONTEUDO_PROGRAMATICO: dados.get("conteudo programatico", ""),
+        MetaKey.AVALIACAO_METODO: dados.get("instrumentos e criterios de avaliacao", {}).get("metodo de avaliacao", ""),
+        MetaKey.AVALIACAO_CRITERIO: dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
+        MetaKey.AVALIACAO_NORMA_RECUP: dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
+        MetaKey.DOCENTES_RESPONSAVEIS: dados.get("docente(s) responsavel(eis)", ""),
+        MetaKey.URL_PRINCIPAL: disciplina.url_principal,
+        MetaKey.URL_OFERECIMENTO: disciplina.url_oferecimento,
+        MetaKey.URL_REQUISITOS: disciplina.url_requisitos,
+        MetaKey.ULTIMA_ATUALIZACAO: time.time(),
     }
 
     # seção unificada de bibliografia
-    metadata["bibliografia"] = ""
+    metadata[MetaKey.BIBLIOGRAFIA] = ""
     if "bibliografia" in dados:
-        metadata["bibliografia"] += dados["bibliografia"] + "\n"
+        metadata[MetaKey.BIBLIOGRAFIA] += dados["bibliografia"] + "\n"
     if "bibliografia basica" in dados:
-        metadata["bibliografia"] += "bibliografia basica:\n" + dados["bibliografia basica"] + "\n"
+        metadata[MetaKey.BIBLIOGRAFIA] += "bibliografia basica:\n" + dados["bibliografia basica"] + "\n"
     if "bibliografia complementar" in dados:
-        metadata["bibliografia"] += "bibliografia complementar:\n" + dados["bibliografia complementar"] + "\n"
+        metadata[MetaKey.BIBLIOGRAFIA] += "bibliografia complementar:\n" + dados["bibliografia complementar"] + "\n"
 
     # seções de oferecimento
     professores = set()
@@ -146,14 +146,14 @@ def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
             )
         turmas.append(dados_turma)
 
-    metadata["professores"] = [str(i) for i in professores]
-    metadata["tipos_vaga"] = [str(i) for i in tipos_vaga]
-    metadata["dias_semana_oferecida"] = [str(i) for i in dias_semana]
-    metadata["horarios_oferecida"] = [str(i) for i in horas_aula]
-    metadata["turmas_oferecidas"] = json.dumps(turmas, ensure_ascii=False)
+    metadata[MetaKey.PROFESSORES] = [str(i) for i in professores]
+    metadata[MetaKey.TIPOS_VAGA] = [str(i) for i in tipos_vaga]
+    metadata[MetaKey.DIAS_SEMANA_OFERECIDA] = [str(i) for i in dias_semana]
+    metadata[MetaKey.HORARIOS_OFERECIDA] = [str(i) for i in horas_aula]
+    metadata[MetaKey.TURMAS_OFERECIDAS] = json.dumps(turmas, ensure_ascii=False)
 
     # converter seções numéricas
-    for i in ["creditos_aula", "creditos_trabalho", "carga_horaria_total"]:
+    for i in [MetaKey.CREDITOS_AULA, MetaKey.CREDITOS_TRABALHO, MetaKey.CARGA_HORARIA_TOTAL]:
         metadata[i] = str(metadata[i]).split()[0]
         if metadata[i].isnumeric():
             metadata[i] = int(metadata[i])
@@ -183,7 +183,7 @@ def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> 
             sections.append(f"{instituto.nome} ({instituto.abrev}) - {dados['departamento']}")
         else:
             sections.append(f"{instituto.nome} ({instituto.abrev})")
-    for k in DISCIPLINA_DOCUMENT_CHAVES:
+    for k in DB_DOCUMENT_CHAVES:
         if k in dados:
             sections.append(f"{k.capitalize()}: {str(dados[k]).strip()}")
 
@@ -200,7 +200,7 @@ def _upsert_banco_disciplinas(ids: list[str], documents: list[str], metadatas: l
     logger.info("Lote %s: enviou %s disciplinas (total no banco: %s)", num_lote, len(ids), collection.count())
 
 
-def atualizar_banco_disciplinas(institutos: list[Instituto] | None = None, batch_size: int = 50) -> None:
+def atualizar_banco_disciplinas(institutos: list[Instituto] | None = None, batch_size: int = DB_UPSERT_BATCH_SIZE) -> None:
     """
     Sincroniza o banco com as disciplinas atualmente oferecidas no Jupiterweb (pode
     demorar).
@@ -224,7 +224,7 @@ def atualizar_banco_disciplinas(institutos: list[Instituto] | None = None, batch
     logger.info("Atualizando banco de disciplinas: %s institutos (lotes de %s)", len(institutos), batch_size)
 
     collection = obter_banco_disciplinas()
-    ids_existentes = set(collection.get(where={"instituto_codigo": {"$in": [i.codigo for i in institutos]}})["ids"])
+    ids_existentes = set(collection.get(where={MetaKey.INSTITUTO_CODIGO: {"$in": [i.codigo for i in institutos]}})["ids"])
     ids_atualizados = set()
     logger.debug("Banco tem %s disciplinas de institutos selecionados para atualização", len(ids_existentes))
 

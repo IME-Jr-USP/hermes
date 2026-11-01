@@ -1,11 +1,19 @@
 import json
 from typing import Annotated
 
-from constants import AGENT_MODEL, SYSTEM_PROMPT
+from config import settings
+from constants import (
+    BUSCA_DEFAULT_RESULTADOS,
+    BUSCA_EMENTA_RESUMO_MAX_CHARS,
+    BUSCA_MAX_RESULTADOS,
+    SYSTEM_PROMPT,
+    MetaKey,
+)
 from db import obter_banco_disciplinas
 from langchain.agents import create_agent
 from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, Field
@@ -71,26 +79,26 @@ class FiltroDisciplinas(BaseModel):
         condicoes = []
 
         if self.instituto_nome:
-            condicoes.append({"instituto_nome": self.instituto_nome})
+            condicoes.append({MetaKey.INSTITUTO_NOME: self.instituto_nome})
         if self.instituto_abrev:
-            condicoes.append({"instituto_abrev": self.instituto_abrev})
+            condicoes.append({MetaKey.INSTITUTO_ABREV: self.instituto_abrev})
         if self.instituto_campus:
-            condicoes.append({"instituto_campus": self.instituto_campus.value})
+            condicoes.append({MetaKey.INSTITUTO_CAMPUS: self.instituto_campus.value})
 
         if self.creditos_aula_min is not None:
-            condicoes.append({"creditos_aula": {"$gte": self.creditos_aula_min}})
+            condicoes.append({MetaKey.CREDITOS_AULA: {"$gte": self.creditos_aula_min}})
         if self.creditos_aula_max is not None:
-            condicoes.append({"creditos_aula": {"$lte": self.creditos_aula_max}})
+            condicoes.append({MetaKey.CREDITOS_AULA: {"$lte": self.creditos_aula_max}})
 
         if self.creditos_trabalho_min is not None:
-            condicoes.append({"creditos_trabalho": {"$gte": self.creditos_trabalho_min}})
+            condicoes.append({MetaKey.CREDITOS_TRABALHO: {"$gte": self.creditos_trabalho_min}})
         if self.creditos_trabalho_max is not None:
-            condicoes.append({"creditos_trabalho": {"$lte": self.creditos_trabalho_max}})
+            condicoes.append({MetaKey.CREDITOS_TRABALHO: {"$lte": self.creditos_trabalho_max}})
 
         if self.carga_horaria_total_min is not None:
-            condicoes.append({"carga_horaria_total": {"$gte": self.carga_horaria_total_min}})
+            condicoes.append({MetaKey.CARGA_HORARIA_TOTAL: {"$gte": self.carga_horaria_total_min}})
         if self.carga_horaria_total_max is not None:
-            condicoes.append({"carga_horaria_total": {"$lte": self.carga_horaria_total_max}})
+            condicoes.append({MetaKey.CARGA_HORARIA_TOTAL: {"$lte": self.carga_horaria_total_max}})
 
         if not condicoes:
             return None
@@ -100,7 +108,11 @@ class FiltroDisciplinas(BaseModel):
 
 
 @tool
-def buscar_disciplinas(query: str, filtros: FiltroDisciplinas | None = None, n_resultados: Annotated[int, Field(ge=1, le=20)] = 10) -> str:
+def buscar_disciplinas(
+    query: str,
+    filtros: FiltroDisciplinas | None = None,
+    n_resultados: Annotated[int, Field(ge=1, le=BUSCA_MAX_RESULTADOS)] = BUSCA_DEFAULT_RESULTADOS,
+) -> str:
     """Busca disciplinas da USP por similaridade semântica com a query.
 
     Use esta tool sempre que o usuário pedir para encontrar, sugerir ou listar
@@ -128,7 +140,7 @@ def buscar_disciplinas(query: str, filtros: FiltroDisciplinas | None = None, n_r
 
     logger.info("buscar_disciplinas: '%s'", query)
 
-    n_resultados = min(n_resultados, 20)
+    n_resultados = min(n_resultados, BUSCA_MAX_RESULTADOS)
     collection = obter_banco_disciplinas()
 
     where = filtros.montar_where() if filtros else None
@@ -143,9 +155,9 @@ def buscar_disciplinas(query: str, filtros: FiltroDisciplinas | None = None, n_r
     for id_, metadata in zip(res["ids"][0], res["metadatas"][0]):
         item = {
             "sigla": id_,
-            "nome": metadata.get("nome", ""),
-            "instituto": metadata.get("instituto_abrev", ""),
-            "ementa": truncar_texto(str(metadata.get("ementa", "")), 200),
+            "nome": metadata.get(MetaKey.NOME, ""),
+            "instituto": metadata.get(MetaKey.INSTITUTO_ABREV, ""),
+            "ementa": truncar_texto(str(metadata.get(MetaKey.EMENTA, "")), BUSCA_EMENTA_RESUMO_MAX_CHARS),
         }
         saida.append(item)
 
@@ -212,8 +224,14 @@ def obter_informacoes_disciplinas(siglas: list[str]) -> str:
 def obter_agent() -> CompiledStateGraph:
     """Retorna novo agente do Hermes."""
 
+    model = ChatOpenAI(
+        model=settings.agent_model,
+        base_url=settings.openrouter_base_url,
+        api_key=settings.openrouter_api_key,
+    )
+
     return create_agent(
-        model=AGENT_MODEL,
+        model=model,
         tools=[buscar_disciplinas, obter_informacoes_disciplinas],
         system_prompt=SYSTEM_PROMPT,
         checkpointer=InMemorySaver(),
@@ -229,6 +247,9 @@ def obter_resposta(agent: CompiledStateGraph, mensagem: str, conversa_id: str) -
         {"messages": [{"role": "user", "content": mensagem}]},
         config=config,
     )
-    mensagens = resultado["messages"][-1].content
+    conteudo = resultado["messages"][-1].content
 
-    return "\n".join([m.get("text", "") for m in mensagens])
+    # via OpenRouter o conteúdo costuma vir como str (no Gemini direto vinha como lista de blocos)
+    if isinstance(conteudo, str):
+        return conteudo
+    return "\n".join([m.get("text", "") for m in conteudo])

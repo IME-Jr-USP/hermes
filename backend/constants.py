@@ -1,24 +1,62 @@
-from pathlib import Path
+from typing import Final
 
-# ---------------------------------- Gerais ---------------------------------- #
-LOG_DIR = Path("./logs")
-LOG_PATH = LOG_DIR / "app.log"
+# ---------------------------------- Logs ------------------------------------ #
+LOG_MAX_BYTES: Final = 5 * 1024 * 1024
+LOG_BACKUP_COUNT: Final = 3
+LOG_FORMAT: Final = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+LOG_DATE_FORMAT: Final = "%Y-%m-%d %H:%M:%S"
 
 # ------------------------------ Banco de Dados ------------------------------ #
-DB_PATH = Path("./chroma_db")
-DB_COLLECTION_NAME = "disciplinas_jupiterweb"
-DB_DISTANCE_METRIC = "cosine"
+DB_COLLECTION_NAME: Final = "disciplinas_jupiterweb"
+DB_DISTANCE_METRIC: Final = "cosine"
+DB_EMBEDDING_NORMALIZE: Final = True  # para similaridade por cosseno
+DB_UPSERT_BATCH_SIZE: Final = 50
+DB_DOCUMENT_CHAVES: Final = ("ementa", "conteudo programatico", "objetivos")
 
-EMBEDDING_MODEL = "BAAI/bge-m3"
-EMBEDDING_DEVICE = "cpu"
-EMBEDDING_NORMALIZE = True  # para similaridade por cosseno
+# ---------------------------------- Busca ----------------------------------- #
+BUSCA_MAX_RESULTADOS: Final = 20
+BUSCA_DEFAULT_RESULTADOS: Final = 10
+BUSCA_EMENTA_RESUMO_MAX_CHARS: Final = 200
 
-DISCIPLINA_DOCUMENT_CHAVES = ["ementa", "conteudo programatico", "objetivos"]
+
+class MetaKey:
+    """Chaves dos metadados no ChromaDB (fonte única para db.py e agent.py)."""
+
+    SIGLA: Final = "sigla"
+    NOME: Final = "nome"
+    NOME_INGLES: Final = "nome_ingles"
+    INSTITUTO_NOME: Final = "instituto_nome"
+    INSTITUTO_ABREV: Final = "instituto_abrev"
+    INSTITUTO_CODIGO: Final = "instituto_codigo"
+    INSTITUTO_CAMPUS: Final = "instituto_campus"
+    DEPARTAMENTO: Final = "departamento"
+    CREDITOS_AULA: Final = "creditos_aula"
+    CREDITOS_TRABALHO: Final = "creditos_trabalho"
+    CARGA_HORARIA_TOTAL: Final = "carga_horaria_total"
+    TIPO: Final = "tipo"
+    ATIVACAO: Final = "ativacao"
+    DESATIVACAO: Final = "desativacao"
+    EMENTA: Final = "ementa"
+    OBJETIVOS: Final = "objetivos"
+    CONTEUDO_PROGRAMATICO: Final = "conteudo_programatico"
+    AVALIACAO_METODO: Final = "avaliacao_metodo"
+    AVALIACAO_CRITERIO: Final = "avaliacao_criterio"
+    AVALIACAO_NORMA_RECUP: Final = "avaliacao_norma_recup"
+    DOCENTES_RESPONSAVEIS: Final = "docentes_responsaveis"
+    BIBLIOGRAFIA: Final = "bibliografia"
+    PROFESSORES: Final = "professores"
+    TIPOS_VAGA: Final = "tipos_vaga"
+    DIAS_SEMANA_OFERECIDA: Final = "dias_semana_oferecida"
+    HORARIOS_OFERECIDA: Final = "horarios_oferecida"
+    TURMAS_OFERECIDAS: Final = "turmas_oferecidas"
+    URL_PRINCIPAL: Final = "url_principal"
+    URL_OFERECIMENTO: Final = "url_oferecimento"
+    URL_REQUISITOS: Final = "url_requisitos"
+    ULTIMA_ATUALIZACAO: Final = "ultima_atualizacao"
+
 
 # ---------------------------------- Agente ---------------------------------- #
-AGENT_MODEL = "google_genai:gemini-3.6-flash"
-
-SYSTEM_PROMPT = """Você é Hermes, assistente que ajuda alunos da USP a encontrar disciplinas oferecidas atualmente, com base em dados extraídos do Jupiterweb.
+SYSTEM_PROMPT: Final = """Você é Hermes, assistente que ajuda alunos da USP a encontrar disciplinas oferecidas atualmente, com base em dados extraídos do Jupiterweb.
 
 Regra central: nunca invente ementas, horários, professores, siglas ou qualquer dado de disciplina. Você não tem esse conhecimento de memória — use sempre as tools para buscar ou confirmar informações. Se não encontrar algo, diga isso claramente e sugira um novo termo de busca ou filtros mais amplos, em vez de completar com suposições. Se ainda assim nada relevante existir na base, informe isso ao usuário e, se fizer sentido, sugira temas próximos que provavelmente retornem resultados.
 

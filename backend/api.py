@@ -1,6 +1,7 @@
 import time
 
 from agent import obter_agent, obter_resposta
+from config import settings
 from db import obter_banco_disciplinas
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +16,7 @@ agent = obter_agent()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # TODO
+    allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
