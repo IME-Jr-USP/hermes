@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
-import { ArrowUp, Hourglass } from 'lucide-react';
+import { ArrowDown, ArrowUp, Hourglass } from 'lucide-react';
 
 import Skeleton, { SkeletonTheme } from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
@@ -226,7 +226,7 @@ function AssistantResponse({ response }) {
    CONVERSATION INPUT
 ======================================== */
 
-function ConversationInput({ loading, onSubmit }) {
+function ConversationInput({ loading, onSubmit, showScrollToBottom, onScrollToBottom }) {
 	const [message, setMessage] = useState('');
 	const textareaRef = useRef(null);
 
@@ -247,8 +247,20 @@ function ConversationInput({ loading, onSubmit }) {
 		}
 	}, [loading]);
 
+
+
 	return (
 		<div className="conversation-bottom">
+			{showScrollToBottom && (
+				<button
+					className="scroll-to-bottom"
+					type="button"
+					aria-label="Ir para o fim da conversa"
+					onClick={onScrollToBottom}
+				>
+					<ArrowDown size={20} strokeWidth={2.2} />
+				</button>
+			)}
 			<form className="conversation-input" onSubmit={handleSubmit}>
 				{loading && (
 					<Hourglass
@@ -305,6 +317,7 @@ function ConversationInput({ loading, onSubmit }) {
 function ConversationPage() {
 	const location = useLocation();
 	const initialQuery = location.state?.query?.trim() ?? '';
+	const conversationMainRef = useRef(null);
 
 	/* Histórico da conversa */
 
@@ -379,6 +392,52 @@ function ConversationPage() {
 	}, [scrollTargetIndex]);
 
 	/* ========================================
+	   BOTÃO SCROLL TO BOTTOM
+	======================================== */
+	const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+
+	useEffect(() => {
+		function updateScrollButton() {
+			const pageHeight = Math.max(
+				document.documentElement.scrollHeight,
+				document.body.scrollHeight,
+			);
+
+			const distanceFromBottom = pageHeight - window.innerHeight - window.scrollY;
+			setShowScrollToBottom(distanceFromBottom > 300);
+		}
+
+		updateScrollButton();
+
+		window.addEventListener('scroll', updateScrollButton, { passive: true });
+		window.addEventListener('resize', updateScrollButton);
+
+		const resizeObserver = new ResizeObserver(updateScrollButton);
+
+		if (conversationMainRef.current) {
+			resizeObserver.observe(conversationMainRef.current);
+		}
+
+		return () => {
+			window.removeEventListener('scroll', updateScrollButton);
+			window.removeEventListener('resize', updateScrollButton);
+			resizeObserver.disconnect();
+		};
+	}, []);
+
+	function handleScrollToBottom() {
+		const pageHeight = Math.max(
+			document.documentElement.scrollHeight,
+			document.body.scrollHeight,
+		);
+
+		window.scrollTo({
+			top: pageHeight,
+			behavior: 'smooth',
+		});
+	}
+
+	/* ========================================
 	   ENVIAR NOVA MENSAGEM
 	======================================== */
 
@@ -441,7 +500,7 @@ function ConversationPage() {
 
 	return (
 		<div className="conversation-page">
-			<main className="conversation-main">
+			<main className="conversation-main" ref={conversationMainRef}>
 				{history.map((item, index) => {
 					const loading = request?.index === index;
 
@@ -486,7 +545,12 @@ function ConversationPage() {
 				})}
 			</main>
 
-			<ConversationInput loading={request !== null} onSubmit={handleNewQuery} />
+			<ConversationInput
+				loading={request !== null}
+				onSubmit={handleNewQuery}
+				showScrollToBottom={showScrollToBottom}
+				onScrollToBottom={handleScrollToBottom}
+			/>{' '}
 		</div>
 	);
 }

@@ -13,7 +13,7 @@
 
 .conversation-main {
 	width: min(40rem, 100%);
-	padding: 1.5rem 1rem var(--conversation-bottom-height) 1rem;
+	padding: 1.5rem 1rem calc(var(--conversation-bottom-height) + 3rem) 1rem;
 }
 
 /* ==========================================================================
@@ -492,6 +492,38 @@
 /* ==========================================================================
    Barra inferior
    ========================================================================== */
+
+/* --- Scroll to bottom ------------------------------------------------------ */
+
+.scroll-to-bottom {
+	position: absolute;
+	bottom: calc(100% - 0.8rem);
+	left: 50%;
+	transform: translateX(-50%);
+
+	display: grid;
+	place-items: center;
+
+	width: 2.5rem;
+	height: 2.5rem;
+	padding: 0;
+
+	color: var(--color-text);
+	background: white;
+	border: 1px solid var(--color-border);
+	border-radius: 50%;
+	box-shadow: var(--shadow-md);
+
+	cursor: pointer;
+	transition:
+		background 0.15s ease,
+		transform 0.15s ease;
+}
+
+.scroll-to-bottom:hover {
+	background: #f5f5f5;
+	transform: translateY(-0.5rem) translateX(-50%);
+}
 
 /* --- Container fixo ------------------------------------------------------ */
 
