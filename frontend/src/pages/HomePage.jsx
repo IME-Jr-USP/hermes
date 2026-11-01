@@ -2,6 +2,7 @@ import { ArrowRight, BookOpen, ChevronRight } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import Footer from '../components/Footer';
 import './HomePage.css';
 
 const exampleQueries = [
@@ -122,9 +123,7 @@ function HomePage() {
 				</div>
 			</main>
 
-			<footer className="home-footer">
-				<p>Hermes — Assistente de Disciplinas USP · Dados abertos do JúpiterWeb</p>
-			</footer>
+			<Footer />
 		</div>
 	);
 }

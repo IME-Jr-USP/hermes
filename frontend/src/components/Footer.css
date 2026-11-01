@@ -1,0 +1,15 @@
+.home-footer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	min-height: 2rem;
+	padding: 0.7rem 1rem;
+
+	border-top: 1px solid var(--color-border);
+
+	color: var(--color-text-muted);
+	font-family: var(--font-family-sans);
+	font-size: var(--font-size-xs);
+	text-align: center;
+}

@@ -1,3 +1,4 @@
+import Footer from '../components/Footer';
 import './AboutPage.css';
 
 function AboutPage() {
@@ -115,6 +116,8 @@ function AboutPage() {
 					</p>
 				</section>
 			</main>
+
+			<Footer />
 		</div>
 	);
 }
