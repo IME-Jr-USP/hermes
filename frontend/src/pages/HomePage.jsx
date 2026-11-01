@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import './HomePage.css';
 
@@ -9,9 +10,10 @@ const exampleQueries = [
 	'Tópicos de Economia e Políticas Públicas para não-economistas',
 ];
 
-function HomePage({ onSearch }) {
+function HomePage() {
 	const [query, setQuery] = useState('');
 	const textareaRef = useRef(null);
+	const navigate = useNavigate();
 
 	function handleSubmit(event) {
 		event.preventDefault();
@@ -20,7 +22,9 @@ function HomePage({ onSearch }) {
 
 		if (!search) return;
 
-		onSearch?.(search);
+		navigate('/conversa', {
+			state: { query: search },
+		});
 	}
 
 	useEffect(() => {

@@ -32,8 +32,8 @@
 }
 
 .header-logo {
-	width: 2.5rem;
-	height: 2.5rem;
+	width: 2.7rem;
+	height: 2.7rem;
 	flex-shrink: 0;
 }
 
@@ -49,7 +49,6 @@
 	flex-shrink: 0;
 	white-space: nowrap;
 
-	font-family: var(--font-family-sans);
 	font-weight: var(--font-weight-medium);
 	font-size: var(--font-size-sm);
 }

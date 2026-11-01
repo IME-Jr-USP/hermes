@@ -50,6 +50,7 @@
 
 	/* Tamanhos */
 	--header-height: 4rem;
+	--conversation-bottom-height: 7rem;
 }
 
 *,
