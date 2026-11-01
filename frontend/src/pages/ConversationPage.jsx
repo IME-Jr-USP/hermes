@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import './ConversationPage.css';
 
 import { ArrowUp, Hourglass } from 'lucide-react';
 
@@ -9,6 +8,12 @@ import 'react-loading-skeleton/dist/skeleton.css';
 
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+import './ConversationPage.css';
+
+/* ========================================
+   DEMO
+======================================== */
 
 const DEMO_RESPONSE = `
 Encontrei **3 disciplinas** que correspondem aos seus interesses em inteligência artificial e aprendizado de máquina. Todas possuem atividades no período da tarde e podem ser consideradas para sua grade.
@@ -88,9 +93,13 @@ async function getRecommendations(query) {
 	return DEMO_RESPONSE;
 }
 
-function UserQuery({ query }) {
+/* ========================================
+   USER QUERY
+======================================== */
+
+function UserQuery({ query, elementRef }) {
 	return (
-		<section className="user-query">
+		<section ref={elementRef} className="user-query">
 			<div className="user-query-header">
 				<span>Sua mensagem</span>
 			</div>
@@ -99,6 +108,10 @@ function UserQuery({ query }) {
 		</section>
 	);
 }
+
+/* ========================================
+   ASSISTANT
+======================================== */
 
 function AssistantHeading({ loading }) {
 	return (
@@ -135,32 +148,6 @@ function LoadingSkeleton() {
 	);
 }
 
-function CourseList({ courses }) {
-	return (
-		<div className="course-list">
-			{courses.map((course) => (
-				<article className="course-item" key={course.code}>
-					<div className="course-institution">{course.institution}</div>
-
-					<h2 className="course-name">{course.name}</h2>
-
-					<div className="course-metadata">
-						<span>{course.code}</span>
-						<span>{course.credits}</span>
-						<span>{course.schedule}</span>
-					</div>
-
-					<p className="course-description">{course.description}</p>
-
-					<a className="course-link" href={course.url} target="_blank" rel="noreferrer">
-						Consultar ementa completa no JúpiterWeb →
-					</a>
-				</article>
-			))}
-		</div>
-	);
-}
-
 function AssistantResponse({ response }) {
 	return (
 		<div className="assistant-response">
@@ -169,18 +156,13 @@ function AssistantResponse({ response }) {
 	);
 }
 
+/* ========================================
+   CONVERSATION INPUT
+======================================== */
+
 function ConversationInput({ loading, onSubmit }) {
 	const [message, setMessage] = useState('');
 	const textareaRef = useRef(null);
-
-	useEffect(() => {
-		const textarea = textareaRef.current;
-
-		if (!textarea) return;
-
-		textarea.style.height = 'auto';
-		textarea.style.height = `${textarea.scrollHeight}px`;
-	}, [message]);
 
 	function handleSubmit(event) {
 		event.preventDefault();
@@ -192,6 +174,12 @@ function ConversationInput({ loading, onSubmit }) {
 		onSubmit(text);
 		setMessage('');
 	}
+
+	useEffect(() => {
+		if (!loading) {
+			textareaRef.current?.focus();
+		}
+	}, [loading]);
 
 	return (
 		<div className="conversation-bottom">
@@ -206,8 +194,8 @@ function ConversationInput({ loading, onSubmit }) {
 				)}
 
 				<textarea
-					ref={textareaRef}
 					value={message}
+					ref={textareaRef}
 					onChange={(event) => setMessage(event.target.value)}
 					placeholder={
 						loading ? 'Aguarde a resposta para continuar...' : 'Continue conversando...'
@@ -252,33 +240,55 @@ function ConversationPage() {
 	const location = useLocation();
 	const initialQuery = location.state?.query?.trim() ?? '';
 
-	const [query, setQuery] = useState(initialQuery);
-	const [response, setResponse] = useState(null);
-	const [status, setStatus] = useState('loading');
-	const [error, setError] = useState(null);
+	/* Histórico da conversa */
 
-	const [retryKey, setRetryKey] = useState(0);
+	const [history, setHistory] = useState(() =>
+		initialQuery ? [{ question: initialQuery, answer: null, error: null }] : [],
+	);
+
+	/* Requisição atualmente em execução */
+
+	const [request, setRequest] = useState(() =>
+		initialQuery ? { question: initialQuery, index: 0 } : null,
+	);
+
+	/* Scroll automático */
+
+	const latestQueryRef = useRef(null);
+	const [scrollTargetIndex, setScrollTargetIndex] = useState(null);
+
+	/* ========================================
+	   EXECUTAR REQUISIÇÃO
+	======================================== */
 
 	useEffect(() => {
+		if (!request) return;
+
 		let cancelled = false;
 
 		async function loadRecommendations() {
-			setStatus('loading');
-			setResponse(null);
-			setError(null);
-
 			try {
-				const result = await getRecommendations(query);
+				const result = await getRecommendations(request.question);
 
 				if (cancelled) return;
 
-				setResponse(result);
-				setStatus('success');
+				setHistory((current) =>
+					current.map((item, index) =>
+						index === request.index ? { ...item, answer: result, error: null } : item,
+					),
+				);
 			} catch (err) {
 				if (cancelled) return;
 
-				setError(err.message);
-				setStatus('error');
+				setHistory((current) =>
+					current.map((item, index) =>
+						index === request.index ? { ...item, error: err.message } : item,
+					),
+				);
+			} finally {
+				if (!cancelled) {
+					setRequest(null);
+				}
 			}
 		}
 
@@ -287,13 +297,77 @@ function ConversationPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [query, retryKey]);
+	}, [request]);
 
-	/* Nova consulta */
+	/* ========================================
+	   SCROLL AUTOMÁTICO
+	======================================== */
+
+	useLayoutEffect(() => {
+		if (scrollTargetIndex === null) return;
+
+		latestQueryRef.current?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'start',
+		});
+	}, [scrollTargetIndex]);
+
+	/* ========================================
+	   ENVIAR NOVA MENSAGEM
+	======================================== */
 
 	function handleNewQuery(message) {
-		setQuery(message);
+		if (request) return;
+
+		const question = message.trim();
+
+		if (!question) return;
+
+		const index = history.length;
+
+		setHistory((current) => [
+			...current,
+			{
+				question,
+				answer: null,
+				error: null,
+			},
+		]);
+
+		setRequest({
+			question,
+			index,
+		});
+
+		setScrollTargetIndex(index);
 	}
+
+	/* ========================================
+	   TENTAR NOVAMENTE
+	======================================== */
+
+	function handleRetry(index) {
+		if (request) return;
+
+		const item = history[index];
+
+		if (!item) return;
+
+		setHistory((current) =>
+			current.map((entry, i) =>
+				i === index ? { ...entry, answer: null, error: null } : entry,
+			),
+		);
+
+		setRequest({
+			question: item.question,
+			index,
+		});
+	}
+
+	/* ========================================
+	   RENDERIZAÇÃO
+	======================================== */
 
 	if (!initialQuery) {
 		return <Navigate to="/" replace />;
@@ -302,34 +376,51 @@ function ConversationPage() {
 	return (
 		<div className="conversation-page">
 			<main className="conversation-main">
-				<UserQuery query={query} />
+				{history.map((item, index) => {
+					const loading = request?.index === index;
 
-				<div className="conversation-divider" />
+					return (
+						<div className="conversation-turn" key={index}>
+							<UserQuery
+								query={item.question}
+								elementRef={index === history.length - 1 ? latestQueryRef : null}
+							/>
 
-				<section
-					className="assistant-section"
-					aria-live="polite"
-					aria-busy={status === 'loading'}
-				>
-					<AssistantHeading loading={status === 'loading'} />
+							<div className="conversation-divider" />
 
-					{status === 'loading' && <LoadingSkeleton />}
+							<section
+								className="assistant-section"
+								aria-live="polite"
+								aria-busy={loading}
+							>
+								<AssistantHeading loading={loading} />
 
-					{status === 'success' && <AssistantResponse response={response} />}
+								{loading && <LoadingSkeleton />}
 
-					{status === 'error' && (
-						<div className="conversation-error">
-							<p>Não foi possível obter uma resposta: "{error}"</p>
+								{item.answer !== null && (
+									<AssistantResponse response={item.answer} />
+								)}
 
-							<button type="button" onClick={() => setRetryKey((value) => value + 1)}>
-								Tentar novamente
-							</button>
+								{item.error && (
+									<div className="conversation-error">
+										<p>Não foi possível obter uma resposta: "{item.error}"</p>
+
+										<button
+											type="button"
+											disabled={request !== null}
+											onClick={() => handleRetry(index)}
+										>
+											Tentar novamente
+										</button>
+									</div>
+								)}
+							</section>
 						</div>
-					)}
-				</section>
+					);
+				})}
 			</main>
 
-			<ConversationInput loading={status === 'loading'} onSubmit={handleNewQuery} />
+			<ConversationInput loading={request !== null} onSubmit={handleNewQuery} />
 		</div>
 	);
 }
