@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -26,6 +27,9 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_device: Literal["cpu", "cuda", "mps"] = "cpu"
 
+    # Hugging Face
+    hf_token: SecretStr = SecretStr("")
+
     # API
     cors_origins: list[str] = ["http://localhost:5173"]
 
@@ -39,3 +43,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if settings.hf_token.get_secret_value():
+    os.environ.setdefault("HF_TOKEN", settings.hf_token.get_secret_value())
