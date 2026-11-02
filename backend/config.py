@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # Banco de Dados
     db_path: Path = BASE_DIR / "chroma_db"
+    runs_path: Path = BASE_DIR / "runs"
     embedding_model: str = "BAAI/bge-m3"
     embedding_device: Literal["cpu", "cuda", "mps"] = "cpu"
 

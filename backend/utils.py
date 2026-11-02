@@ -1,11 +1,10 @@
 import logging
 import os
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
 from config import settings
 from constants import LOG_BACKUP_COUNT, LOG_DATE_FORMAT, LOG_FORMAT, LOG_MAX_BYTES
-
-logging.getLogger().addHandler(logging.NullHandler())  # silencia loggers de terceiros
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -37,3 +36,9 @@ def truncar_texto(texto: str, limite: int) -> str:
     if len(texto) <= limite:
         return texto
     return texto[:limite].rsplit(" ", 1)[0] + "..."
+
+
+def agora_iso() -> str:
+    """Retorna a data e hora atual no formato ISO 8601, truncada para segundos."""
+
+    return datetime.now().isoformat(timespec="seconds")

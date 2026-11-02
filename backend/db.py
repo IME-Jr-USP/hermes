@@ -1,284 +1,339 @@
 import json
 import logging
 import time
+from collections.abc import Iterable
+from dataclasses import dataclass
+from enum import StrEnum
+from functools import lru_cache
+from pathlib import Path
+from typing import TypedDict
 
 import chromadb
-import jupiterweb
 from chromadb.api import ClientAPI
 from chromadb.api.types import Metadata
 from chromadb.utils import embedding_functions
 from config import settings
 from constants import (
     DB_COLLECTION_NAME,
+    DB_DELETE_BATCH_SIZE,
     DB_DISTANCE_METRIC,
-    DB_DOCUMENT_CHAVES,
     DB_EMBEDDING_NORMALIZE,
     DB_UPSERT_BATCH_SIZE,
-    MetaKey,
 )
-from jupiterweb import Disciplina, HorarioAula, Instituto, Oferecimento
-from utils import get_logger
+from jupiterweb import Disciplina
+from utils import agora_iso, get_logger
 
 logger = get_logger(__name__)
 logging.getLogger("sentence_transformers").setLevel(logging.INFO)
-logging.basicConfig(level=logging.INFO)
-
-_client: ClientAPI | None = None
-_collection: chromadb.Collection | None = None
 
 
+# ---------------------------------- Acesso ---------------------------------- #
+
+
+@lru_cache
 def obter_client() -> ClientAPI:
-    """Retorna a instância única do cliente ChromaDB, criando-a na primeira chamada."""
+    """Devolve o cliente do ChromaDB (única instância, criada na primeira chamada)."""
 
-    global _client
-    if _client is None:
-        _client = chromadb.PersistentClient(path=str(settings.db_path))
-        logger.info("Client ChromaDB inicializado em '%s'", settings.db_path)
-    return _client
+    client = chromadb.PersistentClient(path=str(settings.db_path))
+    logger.info("Cliente do ChromaDB criado em %s", settings.db_path)
+    return client
 
 
+@lru_cache
 def obter_banco_disciplinas() -> chromadb.Collection:
-    """
-    Retorna a instância única do banco de disciplinas, carregando-o na primeira chamada.
-    Se não existir na primeira chamada, cria um banco novo vazio.
-    """
+    """Devolve a coleção de disciplinas do ChromaDB (única instância, criada na primeira chamada)."""
 
-    global _collection
-    if _collection is None:
-        client = obter_client()
+    client = obter_client()
 
-        ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name=settings.embedding_model,
-            device=settings.embedding_device,
-            normalize_embeddings=DB_EMBEDDING_NORMALIZE,
-        )
+    logger.debug("Criando função de embedding com modelo %s (%s)", settings.embedding_model, settings.embedding_device)
+    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+        model_name=settings.embedding_model,
+        device=settings.embedding_device,
+        normalize_embeddings=DB_EMBEDDING_NORMALIZE,
+    )
 
-        _collection = client.get_or_create_collection(
-            name=DB_COLLECTION_NAME,
-            embedding_function=ef,  # pyright: ignore[reportArgumentType]
-            metadata={"hnsw:space": DB_DISTANCE_METRIC},
-        )
+    logger.debug("Obtendo coleção de disciplinas do ChromaDB: %s", DB_COLLECTION_NAME)
+    collection = client.get_or_create_collection(
+        name=DB_COLLECTION_NAME,
+        embedding_function=ef,  # pyright: ignore[reportArgumentType]
+        configuration={"hnsw": {"space": DB_DISTANCE_METRIC}},
+    )
 
-        logger.info("Banco de disciplinas '%s' pronto (%s itens)", DB_COLLECTION_NAME, _collection.count())
-    return _collection
+    logger.info("Obteve coleção de disciplinas do ChromaDB: %s", DB_COLLECTION_NAME)
+    return collection
+
+
+# ---------------------------- Conversão de dados ---------------------------- #
 
 
 def _obter_id_disciplina(disciplina: Disciplina) -> str:
-    """Retorna ID da `disciplina` a ser utilizado no banco de dados."""
+    """Devolve o ID da disciplina para ser usado no banco de dados."""
 
-    return str(disciplina.sigla).upper()
+    return disciplina.sigla.upper().strip()
 
 
-def _obter_metadata_disciplina(disciplina: Disciplina, instituto: Instituto) -> Metadata:
-    """Retorna metadados da `disciplina` a serem armazenados no banco de dados."""
+def _obter_metadata_disciplina(disciplina: Disciplina) -> Metadata:
+    """Devolve os metadados da disciplina para serem usados no banco de dados."""
 
-    dados = disciplina.obter_dados()
+    return {"ultima_atualizacao": time.time()}  # TODO
 
-    metadata = {
-        MetaKey.SIGLA: disciplina.sigla,
-        MetaKey.INSTITUTO_NOME: instituto.nome,
-        MetaKey.INSTITUTO_ABREV: instituto.abrev.upper(),
-        MetaKey.INSTITUTO_CODIGO: instituto.codigo,
-        MetaKey.INSTITUTO_CAMPUS: instituto.campus,
-        MetaKey.DEPARTAMENTO: dados.get("departamento", ""),
-        MetaKey.NOME: dados.get("nome", ""),
-        MetaKey.NOME_INGLES: dados.get("nome ingles", ""),
-        MetaKey.CREDITOS_AULA: dados.get("creditos aula", "0"),
-        MetaKey.CREDITOS_TRABALHO: dados.get("creditos trabalho", "0"),
-        MetaKey.CARGA_HORARIA_TOTAL: dados.get("carga horaria total", "0"),
-        MetaKey.TIPO: dados.get("tipo", ""),
-        MetaKey.ATIVACAO: dados.get("ativacao", ""),
-        MetaKey.DESATIVACAO: dados.get("desativacao", ""),
-        MetaKey.EMENTA: dados.get("ementa", ""),
-        MetaKey.OBJETIVOS: dados.get("objetivos", ""),
-        MetaKey.CONTEUDO_PROGRAMATICO: dados.get("conteudo programatico", ""),
-        MetaKey.AVALIACAO_METODO: dados.get("instrumentos e criterios de avaliacao", {}).get("metodo de avaliacao", ""),
-        MetaKey.AVALIACAO_CRITERIO: dados.get("instrumentos e criterios de avaliacao", {}).get("criterio de avaliacao", ""),
-        MetaKey.AVALIACAO_NORMA_RECUP: dados.get("instrumentos e criterios de avaliacao", {}).get("norma de recuperacao", ""),
-        MetaKey.DOCENTES_RESPONSAVEIS: dados.get("docente(s) responsavel(eis)", ""),
-        MetaKey.URL_PRINCIPAL: disciplina.url_principal,
-        MetaKey.URL_OFERECIMENTO: disciplina.url_oferecimento,
-        MetaKey.URL_REQUISITOS: disciplina.url_requisitos,
-        MetaKey.ULTIMA_ATUALIZACAO: time.time(),
+
+def _obter_document_disciplina(disciplina: Disciplina) -> str:
+    """Devolve o documento da disciplina para ser usado no banco de dados."""
+
+    return disciplina.obter_dados().get("ementa", "")  # TODO
+
+
+# ----------------------------- Operações básicas ---------------------------- #
+
+
+@dataclass
+class ResultadoOperacao:
+    ok: list[str]
+    falhas: dict[str, str]  # {id: mensagem de erro}
+
+
+def _gravar_lote(disciplinas: Iterable[Disciplina]) -> None:
+    """Grava um lote de disciplinas no banco de dados de uma vez. Usado
+    internamente por `upsert_disciplinas()`."""
+
+    disciplinas = list(disciplinas)
+
+    ids = [_obter_id_disciplina(d) for d in disciplinas]
+    metadatas = [_obter_metadata_disciplina(d) for d in disciplinas]
+    documents = [_obter_document_disciplina(d) for d in disciplinas]
+
+    collection = obter_banco_disciplinas()
+    collection.upsert(ids=ids, metadatas=metadatas, documents=documents)
+
+
+def _apagar_lote(disciplinas: Iterable[Disciplina]) -> None:
+    """Apaga um lote de disciplinas do banco de dados de uma vez. Usado
+    internamente por `delete_disciplinas()`."""
+
+    ids = list({_obter_id_disciplina(d) for d in disciplinas})
+    collection = obter_banco_disciplinas()
+    collection.delete(ids=ids)
+
+
+def upsert_disciplinas(disciplinas: Iterable[Disciplina], batch_size: int = DB_UPSERT_BATCH_SIZE) -> ResultadoOperacao:
+    """Insere ou atualiza disciplinas no banco de dados em lotes."""
+
+    disciplinas = list(disciplinas)
+    resultado = ResultadoOperacao(ok=[], falhas={})
+
+    for i in range(0, len(disciplinas), batch_size):
+        batch = disciplinas[i : i + batch_size]
+
+        try:
+            _gravar_lote(batch)
+            resultado.ok.extend([_obter_id_disciplina(d) for d in batch])
+        except Exception as e:
+            logger.exception("Falha ao gravar lote de disciplinas: %s", [d.sigla for d in batch])
+            for d in batch:
+                resultado.falhas[_obter_id_disciplina(d)] = str(e)
+
+    return resultado
+
+
+def delete_disciplinas(disciplinas: Iterable[Disciplina], batch_size: int = DB_DELETE_BATCH_SIZE) -> ResultadoOperacao:
+    """Exclui disciplinas do banco de dados em lotes."""
+
+    disciplinas = list(disciplinas)
+    resultado = ResultadoOperacao(ok=[], falhas={})
+
+    for i in range(0, len(disciplinas), batch_size):
+        batch = disciplinas[i : i + batch_size]
+
+        try:
+            _apagar_lote(batch)
+            resultado.ok.extend([_obter_id_disciplina(d) for d in batch])
+        except Exception as e:
+            logger.exception("Falha ao apagar lote de disciplinas: %s", [d.sigla for d in batch])
+            for d in batch:
+                resultado.falhas[_obter_id_disciplina(d)] = str(e)
+
+    return resultado
+
+
+# ----------------------------- Registro externo ----------------------------- #
+
+
+class StatusDisciplina(StrEnum):
+    """Status de uma disciplina em uma run de atualização do banco de dados."""
+
+    PENDENTE = "pendente"
+    CONCLUIDA = "concluida"
+    FALHA = "falha"
+
+
+class StatusRun(StrEnum):
+    """Status de uma run de atualização do banco de dados."""
+
+    EM_ANDAMENTO = "em_andamento"
+    COMPLETA = "completa"
+
+
+class DadosRun(TypedDict):
+    """Dados de uma run de atualização do banco de dados."""
+
+    status: StatusRun
+    iniciada_em: str
+    finalizada_em: str | None
+    pendentes: list[str]
+    concluidas: list[str]
+    falhas: dict[str, str]
+
+
+def _gerar_run_id() -> str:
+    """Gera um ID único para uma run de atualização do banco de dados."""
+
+    i = 1
+    while _run_path(f"run-{i}").exists():
+        i += 1
+    return f"run-{i}"
+
+
+def _run_path(run_id: str) -> Path:
+    """Devolve o caminho da run de atualização do banco de dados."""
+
+    return settings.runs_path / f"{run_id}.json"
+
+
+def _ler_run(run_id: str) -> DadosRun:
+    """Lê o arquivo de status da run de atualização do banco de dados."""
+
+    return json.loads(_run_path(run_id).read_text(encoding="utf-8"))
+
+
+def _gravar_run(run_id: str, dados: DadosRun) -> None:
+    """Reescreve dados no arquivo de status da run de atualização do banco de
+    dados. Cria o arquivo se não existir."""
+
+    path = _run_path(run_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+# ---------------------------- Operações de rotina --------------------------- #
+
+
+def _processar_pendentes(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) -> None:
+    """Processa as disciplinas pendentes de uma run de atualização do banco de
+    dados, em lotes, gravando o progresso da run após cada lote. Não atualiza o
+    status da run. Usada internamente por `retomar_run()`."""
+
+    dados = _ler_run(run_id)
+    if not dados["pendentes"]:
+        return
+
+    total = len(dados["pendentes"])
+    num_lotes = (total + batch_size - 1) // batch_size
+    logger.info("Processando %s pendentes de %s (%s lotes de %s)", total, run_id, num_lotes, batch_size)
+
+    for n in range(1, num_lotes + 1):
+        batch = dados["pendentes"][:batch_size]
+        dados["pendentes"] = dados["pendentes"][batch_size:]
+
+        disciplinas = [Disciplina(s) for s in batch]
+
+        logger.debug("Enviando lote %s/%s de %s (%s disciplinas)", n, num_lotes, run_id, len(disciplinas))
+        resultado = upsert_disciplinas(disciplinas, batch_size=batch_size)
+
+        dados["concluidas"].extend(resultado.ok)
+        dados["falhas"].update(resultado.falhas)
+        _gravar_run(run_id, dados)
+
+        logger.info("Lote %s/%s de %s processado: %s enviadas, %s falhas", n, num_lotes, run_id, len(resultado.ok), len(resultado.falhas))
+
+    logger.info("Pendentes de %s processadas: restam %s pendentes e %s falhas", run_id, len(dados["pendentes"]), len(dados["falhas"]))
+
+
+def _processar_falhas(run_id: str) -> None:
+    """Marca as disciplinas que falharam de uma run de atualização do banco de
+    dados como pendentes novamente, e tenta reprocessá-las. Não atualiza o
+    status da run. Usada internamente por `retomar_run()`."""
+
+    dados = _ler_run(run_id)
+    if not dados["falhas"]:
+        return
+
+    logger.info("Reprocessando %s disciplinas que falharam em %s (tornam-se pendentes)", len(dados["falhas"]), run_id)
+
+    dados["pendentes"].extend(dados["falhas"].keys())
+    dados["falhas"] = {}
+    _gravar_run(run_id, dados)
+    _processar_pendentes(run_id, batch_size=1)
+
+
+def criar_run(siglas_disciplinas: Iterable[str]) -> str:
+    """Cria uma nova run de atualização do banco de dados e retorna o ID da run."""
+
+    siglas_disciplinas = [s.strip().upper() for s in dict.fromkeys(siglas_disciplinas)]
+
+    run_id = _gerar_run_id()
+    path = _run_path(run_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(exist_ok=False)
+
+    dados: DadosRun = {
+        "status": StatusRun.EM_ANDAMENTO,
+        "iniciada_em": agora_iso(),
+        "finalizada_em": None,
+        "concluidas": [],
+        "falhas": {},
+        "pendentes": siglas_disciplinas,
     }
 
-    # seção unificada de bibliografia
-    metadata[MetaKey.BIBLIOGRAFIA] = ""
-    if "bibliografia" in dados:
-        metadata[MetaKey.BIBLIOGRAFIA] += dados["bibliografia"] + "\n"
-    if "bibliografia basica" in dados:
-        metadata[MetaKey.BIBLIOGRAFIA] += "bibliografia basica:\n" + dados["bibliografia basica"] + "\n"
-    if "bibliografia complementar" in dados:
-        metadata[MetaKey.BIBLIOGRAFIA] += "bibliografia complementar:\n" + dados["bibliografia complementar"] + "\n"
-
-    # seções de oferecimento
-    professores = set()
-    tipos_vaga = set()
-    dias_semana = set()
-    horas_aula = set()
-    turmas = []
-
-    for turma in dados.get("oferecimento", []):
-        if not isinstance(turma, Oferecimento):
-            continue
-
-        tipos_vaga.update(turma.vagas.keys())
-        dados_turma = {"horarios": []}
-
-        for horario in turma.horarios:
-            if not isinstance(horario, HorarioAula):
-                continue
-
-            if horario.professor:
-                professores.add(horario.professor)
-            if horario.dia_semana:
-                dias_semana.add(horario.dia_semana)
-            if horario.hora_inicio:
-                horas_aula.add(horario.hora_inicio)
-
-            dados_turma["horarios"].append(
-                {
-                    "hora_inicio": horario.hora_inicio,
-                    "hora_fim": horario.hora_fim,
-                    "professor": horario.professor,
-                    "dia_semana": horario.dia_semana,
-                }
-            )
-        turmas.append(dados_turma)
-
-    metadata[MetaKey.PROFESSORES] = [str(i) for i in professores]
-    metadata[MetaKey.TIPOS_VAGA] = [str(i) for i in tipos_vaga]
-    metadata[MetaKey.DIAS_SEMANA_OFERECIDA] = [str(i) for i in dias_semana]
-    metadata[MetaKey.HORARIOS_OFERECIDA] = [str(i) for i in horas_aula]
-    metadata[MetaKey.TURMAS_OFERECIDAS] = json.dumps(turmas, ensure_ascii=False)
-
-    # converter seções numéricas
-    for i in [MetaKey.CREDITOS_AULA, MetaKey.CREDITOS_TRABALHO, MetaKey.CARGA_HORARIA_TOTAL]:
-        metadata[i] = str(metadata[i]).split()[0]
-        if metadata[i].isnumeric():
-            metadata[i] = int(metadata[i])
-
-    # converter seções de tipo inválido
-    for k, v in metadata.items():
-        if not isinstance(v, (int, str, list, float, bool)) and v != None:
-            metadata[k] = None
-            logger.warning("Chave '%s' dos metadados de '%s' tem tipo '%s' (foi convertida para None)", k, disciplina, type(v))
-        if isinstance(v, list) and len(v) == 0:
-            metadata[k] = None
-            logger.warning("Chave '%s' dos metadados de '%s' é lista vazia (foi convertida para None)", k, disciplina)
-
-    return metadata
+    _gravar_run(run_id, dados)
+    logger.info("Criada nova run de atualização do banco de dados: %s (%s disciplinas)", run_id, len(siglas_disciplinas))
+    return run_id
 
 
-def _obter_document_disciplina(disciplina: Disciplina, instituto: Instituto) -> str:
-    """Retorna documento da `disciplina` a ser armazenado no banco de dados."""
-
-    dados = disciplina.obter_dados()
-    sections = []
-
-    if "nome" in dados:
-        sections.append(dados["nome"])
-    if instituto:
-        if "departamento" in dados:
-            sections.append(f"{instituto.nome} ({instituto.abrev}) - {dados['departamento']}")
-        else:
-            sections.append(f"{instituto.nome} ({instituto.abrev})")
-    for k in DB_DOCUMENT_CHAVES:
-        if k in dados:
-            sections.append(f"{k.capitalize()}: {str(dados[k]).strip()}")
-
-    return "\n\n".join([str(i) for i in sections])
-
-
-def _upsert_banco_disciplinas(ids: list[str], documents: list[str], metadatas: list[Metadata], num_lote: int) -> None:
-    """Faz upsert de lote no banco de disciplinas."""
-
-    collection = obter_banco_disciplinas()
-
-    logger.debug("Lote %s: enviando %s disciplinas", num_lote, len(ids))
-    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
-    logger.info("Lote %s: enviou %s disciplinas (total no banco: %s)", num_lote, len(ids), collection.count())
-
-
-def atualizar_banco_disciplinas(institutos: list[Instituto] | None = None, batch_size: int = DB_UPSERT_BATCH_SIZE) -> None:
+def retomar_run(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) -> StatusRun:
     """
-    Sincroniza o banco com as disciplinas atualmente oferecidas no Jupiterweb (pode
-    demorar).
-
-    Insere disciplinas novas, atualiza as já existentes e remove do banco as que já não
-    estão sendo oferecidas ou que já não existem mais. As inserções/atualizações são
-    feitas em lotes de tamanho `batch_size`, exceto pelo último que pode ser menor.
-
-    Se `institutos` forem informados, restringe a sincronização às disciplinas desses
-    institutos. Nesse caso, apenas elas são inseridas, atualizadas ou removidas, e o
-    restante do banco não é alterado. Se `instituto=None`, considera todos os institutos
-    do Jupiterweb, e o banco todo é atualizado.
+    Retoma/começa uma run de atualização do banco de dados. Se a run estiver
+    completa, não faz nada. Se a run estiver em andamento, processa as
+    disciplinas pendentes, e depois tenta reprocessar as disciplinas que
+    falharam. No final, se não houverem disciplinas pendentes ou falhas, marca a
+    run como completa.
     """
 
-    if institutos is None:
-        institutos = jupiterweb.obter_institutos()
+    dados = _ler_run(run_id)
+    if dados["status"] == StatusRun.COMPLETA:
+        logger.info("Run de atualização %s já está completa", run_id)
+        return StatusRun.COMPLETA
 
-    inicio = time.time()
-    num_lotes = 0
+    start = time.time()
 
-    logger.info("Atualizando banco de disciplinas: %s institutos (lotes de %s)", len(institutos), batch_size)
-
-    collection = obter_banco_disciplinas()
-    ids_existentes = set(collection.get(where={MetaKey.INSTITUTO_CODIGO: {"$in": [i.codigo for i in institutos]}})["ids"])
-    ids_atualizados = set()
-    logger.debug("Banco tem %s disciplinas de institutos selecionados para atualização", len(ids_existentes))
-
-    ids = []
-    documents = []
-    metadatas = []
-
-    for instituto in institutos:
-        logger.debug("Extraindo disciplinas de '%s'", instituto)
-
-        for disciplina in instituto.obter_disciplinas():
-            try:
-                disciplina.obter_dados()
-            except Exception as e:  # noqa: BLE001
-                logger.error("Erro ao obter dados da disciplina '%s' (ignorada): %s", disciplina, e)
-                continue
-
-            if not disciplina.encontrada():
-                logger.debug("Disciplina '%s' não encontrada no Jupiterweb (ignorada)", disciplina)
-                continue
-            if not disciplina.possui_oferecimento():
-                logger.debug("Disciplina '%s' sem oferecimento (ignorada)", disciplina)
-                continue
-
-            id_ = _obter_id_disciplina(disciplina)
-            ids_atualizados.add(id_)
-            ids.append(id_)
-            documents.append(_obter_document_disciplina(disciplina, instituto))
-            metadatas.append(_obter_metadata_disciplina(disciplina, instituto))
-            logger.info("Lote %s: disciplina '%s' adicionada (%s/%s)", num_lotes + 1, disciplina, len(ids), batch_size)
-
-            if len(ids) >= batch_size:
-                _upsert_banco_disciplinas(ids, documents, metadatas, num_lotes + 1)
-
-                num_lotes += 1
-                ids.clear()
-                documents.clear()
-                metadatas.clear()
-    if len(ids) > 0:
-        _upsert_banco_disciplinas(ids, documents, metadatas, num_lotes + 1)
-        num_lotes += 1
-
-    ids_desatualizados = ids_existentes - ids_atualizados
-    if ids_desatualizados:
-        logger.info("Removendo %s disciplinas desatualizadas do banco (sem oferecimento ou inexistentes)", len(ids_desatualizados))
-        for id_ in ids_desatualizados:
-            logger.debug("Removendo disciplina desatualizada: '%s'", id_)
-        collection.delete(ids=list(ids_desatualizados))
-
-    duracao = time.time() - inicio
+    dados["status"] = StatusRun.EM_ANDAMENTO
     logger.info(
-        "Banco de disciplinas atualizado (em %.2fs): adicionadas/atualizadas: %s | removidas: %s | total no banco: %s",
-        duracao,
-        len(ids_atualizados),
-        len(ids_desatualizados),
-        collection.count(),
+        "Retomando run de atualização %s: %s concluídas, %s pendentes, %s falhas",
+        run_id,
+        len(dados["concluidas"]),
+        len(dados["pendentes"]),
+        len(dados["falhas"]),
     )
+
+    _processar_pendentes(run_id, batch_size)
+    _processar_falhas(run_id)
+
+    dados = _ler_run(run_id)  # estado atualizado
+    if dados["pendentes"] or dados["falhas"]:
+        logger.warning(
+            "Run de atualização %s não foi concluída: %s concluídas, %s pendentes, %s falhas",
+            run_id,
+            len(dados["concluidas"]),
+            len(dados["pendentes"]),
+            len(dados["falhas"]),
+        )
+        return StatusRun.EM_ANDAMENTO
+
+    dados["status"] = StatusRun.COMPLETA
+    dados["finalizada_em"] = agora_iso()
+    _gravar_run(run_id, dados)
+    logger.info("Run de atualização %s concluída (em %.1f segundos)", run_id, time.time() - start)
+
+    return StatusRun.COMPLETA

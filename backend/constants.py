@@ -12,6 +12,7 @@ DB_COLLECTION_NAME: Final = "disciplinas_jupiterweb"
 DB_DISTANCE_METRIC: Final = "cosine"
 DB_EMBEDDING_NORMALIZE: Final = True  # para similaridade por cosseno
 DB_UPSERT_BATCH_SIZE: Final = 50
+DB_DELETE_BATCH_SIZE: Final = 50
 DB_DOCUMENT_CHAVES: Final = ("ementa", "conteudo programatico", "objetivos")
 
 # ---------------------------------- Busca ----------------------------------- #
