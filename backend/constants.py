@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Final
 
 # ---------------------------------- Logs ------------------------------------ #
@@ -74,3 +75,17 @@ Como responder:
 - Seja direto. Evite respostas longas quando uma lista curta ou uma frase resolvem.
 - Ao mencionar qualquer disciplina, inclua se possível o link da página principal da disciplina, que é armazenado junto às informações da disciplina. Formate os links no padrão Markdown: [Código - Nome da Disciplina](URL).
 """
+
+
+class CampusDisciplina(str, Enum):
+    LORENA = "Lorena"
+    LESTE = "Leste"
+    PIRACICABA = "Piracicaba"
+    SAO_SEBASTIAO = "São Sebastião"
+    BAURU = "Bauru"
+    PIRASSUNUNGA = "Pirassununga"
+    RIBEIRAO_PRETO = "Ribeirão Preto"
+    QUADRILATERO = "Quadrilátero"
+    BUTANTA = "Butantã"
+    IPIRANGA = "Ipiranga"
+    SAO_CARLOS = "São Carlos"

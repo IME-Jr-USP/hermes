@@ -1,6 +1,5 @@
 import logging
 import os
-from enum import Enum
 from logging.handlers import RotatingFileHandler
 
 from config import settings
@@ -38,17 +37,3 @@ def truncar_texto(texto: str, limite: int) -> str:
     if len(texto) <= limite:
         return texto
     return texto[:limite].rsplit(" ", 1)[0] + "..."
-
-
-class CampusDisciplina(str, Enum):
-    LORENA = "Lorena"
-    LESTE = "Leste"
-    PIRACICABA = "Piracicaba"
-    SAO_SEBASTIAO = "São Sebastião"
-    BAURU = "Bauru"
-    PIRASSUNUNGA = "Pirassununga"
-    RIBEIRAO_PRETO = "Ribeirão Preto"
-    QUADRILATERO = "Quadrilátero"
-    BUTANTA = "Butantã"
-    IPIRANGA = "Ipiranga"
-    SAO_CARLOS = "São Carlos"

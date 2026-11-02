@@ -7,6 +7,7 @@ from constants import (
     BUSCA_EMENTA_RESUMO_MAX_CHARS,
     BUSCA_MAX_RESULTADOS,
     SYSTEM_PROMPT,
+    CampusDisciplina,
     MetaKey,
 )
 from db import obter_banco_disciplinas
@@ -17,7 +18,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel, Field
-from utils import CampusDisciplina, get_logger, truncar_texto
+from utils import get_logger, truncar_texto
 
 logger = get_logger(__name__)
 
