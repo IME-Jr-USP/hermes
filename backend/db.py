@@ -86,7 +86,7 @@ def _obter_metadata_disciplina(disciplina: Disciplina) -> Metadata:
 def _obter_document_disciplina(disciplina: Disciplina) -> str:
     """Devolve o documento da disciplina para ser usado no banco de dados."""
 
-    return disciplina.obter_dados().get("ementa", "")  # TODO
+    return disciplina.obter_dados().get("ementa", "")[:50]  # TODO
 
 
 # ----------------------------- Operações básicas ---------------------------- #
