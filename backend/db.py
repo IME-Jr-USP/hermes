@@ -20,7 +20,7 @@ from constants import (
     DB_EMBEDDING_NORMALIZE,
     DB_UPSERT_BATCH_SIZE,
 )
-from jupiterweb import Disciplina, obter_instituto
+from jupiterweb import Disciplina, Instituto, obter_instituto, obter_institutos
 from utils import agora_iso, get_logger
 
 logger = get_logger(__name__)
@@ -244,15 +244,22 @@ def _processar_pendentes(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) ->
         dados["pendentes"] = dados["pendentes"][batch_size:]
 
         disciplinas = [Disciplina(s, codigo_instituto=dados["codigos_institutos"].get(s)) for s in batch]
+        logger.debug("Lote %s/%s (%s): obtendo dados das %s disciplinas", n, num_lotes, run_id, len(disciplinas))
 
-        logger.debug("Enviando lote %s/%s de %s (%s disciplinas)", n, num_lotes, run_id, len(disciplinas))
+        for i in range(len(disciplinas)):
+            d = disciplinas[i]
+
+            logger.debug("Lote %s/%s (%s): obtendo dados da disciplina %s (%s/%s)", n, num_lotes, run_id, d.sigla, i + 1, len(disciplinas))
+            d.obter_dados()
+
+        logger.debug("Lote %s/%s (%s): enviando %s disciplinas", n, num_lotes, run_id, len(disciplinas))
         resultado = upsert_disciplinas(disciplinas, batch_size=batch_size)
 
         dados["concluidas"].extend(resultado.ok)
         dados["falhas"].update(resultado.falhas)
         _gravar_run(run_id, dados)
 
-        logger.info("Lote %s/%s de %s processado: %s enviadas, %s falhas", n, num_lotes, run_id, len(resultado.ok), len(resultado.falhas))
+        logger.info("Lote %s/%s (%s): processado (%s enviadas, %s falhas)", n, num_lotes, run_id, len(resultado.ok), len(resultado.falhas))
 
     logger.info("Pendentes de %s processadas: restam %s pendentes e %s falhas", run_id, len(dados["pendentes"]), len(dados["falhas"]))
 
@@ -356,3 +363,31 @@ def retomar_run(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) -> StatusRu
     logger.info("Run de atualização %s concluída (em %.1f segundos)", run_id, time.time() - start)
 
     return StatusRun.COMPLETA
+
+
+def sincronizar_disciplinas(institutos: Iterable[Instituto] | None = None, batch_size: int = DB_UPSERT_BATCH_SIZE) -> str:
+    """
+    Sincroniza o banco de dados com o Jupiterweb (pode demorar). Se `institutos`
+    for fornecido, apenas disciplinas desses institutos serão sincronizadas.
+    Retorna run_id da run de atualização do banco de dados utilizado para a sincronização.
+    """
+
+    # TODO filtrar por oferecidas apenas
+
+    institutos = list(institutos)
+    if not institutos:
+        institutos = obter_institutos()
+
+    logger.info("Obtendo disciplinas de %s institutos para sincronização", len(institutos))
+
+    disciplinas = []
+    for i in institutos:
+        logger.debug("Obtendo disciplinas do instituto %s (%s)", i.codigo, i.nome)
+        disciplinas_instituto = i.obter_disciplinas()
+
+        disciplinas.extend(disciplinas_instituto)
+        logger.debug("Obtidas %s disciplinas do instituto %s (%s)", len(disciplinas_instituto), i.codigo, i.nome)
+
+    run_id = criar_run(disciplinas)
+    retomar_run(run_id, batch_size)
+    return run_id
