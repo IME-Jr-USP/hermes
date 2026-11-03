@@ -20,7 +20,7 @@ from constants import (
     DB_EMBEDDING_NORMALIZE,
     DB_UPSERT_BATCH_SIZE,
 )
-from jupiterweb import Disciplina
+from jupiterweb import Disciplina, obter_instituto
 from utils import agora_iso, get_logger
 
 logger = get_logger(__name__)
@@ -75,7 +75,12 @@ def _obter_id_disciplina(disciplina: Disciplina) -> str:
 def _obter_metadata_disciplina(disciplina: Disciplina) -> Metadata:
     """Devolve os metadados da disciplina para serem usados no banco de dados."""
 
-    return {"ultima_atualizacao": time.time()}  # TODO
+    instituto = obter_instituto(disciplina.codigo_instituto)
+
+    return {
+        "ultima_atualizacao": time.time(),
+        "nome_instituto": instituto.nome if instituto else "",
+    }  # TODO
 
 
 def _obter_document_disciplina(disciplina: Disciplina) -> str:
@@ -183,6 +188,7 @@ class DadosRun(TypedDict):
     pendentes: list[str]
     concluidas: list[str]
     falhas: dict[str, str]
+    codigos_institutos: dict[str, str]  # relaciona disciplinas aos institutos que as oferecem
 
 
 def _gerar_run_id() -> str:
@@ -237,7 +243,7 @@ def _processar_pendentes(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) ->
         batch = dados["pendentes"][:batch_size]
         dados["pendentes"] = dados["pendentes"][batch_size:]
 
-        disciplinas = [Disciplina(s) for s in batch]
+        disciplinas = [Disciplina(s, codigo_instituto=dados["codigos_institutos"].get(s)) for s in batch]
 
         logger.debug("Enviando lote %s/%s de %s (%s disciplinas)", n, num_lotes, run_id, len(disciplinas))
         resultado = upsert_disciplinas(disciplinas, batch_size=batch_size)
@@ -268,10 +274,22 @@ def _processar_falhas(run_id: str) -> None:
     _processar_pendentes(run_id, batch_size=1)
 
 
-def criar_run(siglas_disciplinas: Iterable[str]) -> str:
-    """Cria uma nova run de atualização do banco de dados e retorna o ID da run."""
+def criar_run(disciplinas: Iterable[Disciplina]) -> str:
+    """
+    Cria uma run para atualizar o banco de dados com as disciplinas
+    fornecidas. Retorna o ID da run.
 
-    siglas_disciplinas = [s.strip().upper() for s in dict.fromkeys(siglas_disciplinas)]
+    A run é criada com status "em andamento", e as disciplinas são marcadas como
+    pendentes. A função não processa as disciplinas, apenas cria o registro da run. Para
+    processar as disciplinas, use `retomar_run()`.
+
+    É preferível que as disciplinas passadas tenham o atributo `codigo_instituto` preenchido,
+    para ser utilizado como metadado no banco de dados.
+    """
+
+    disciplinas = list(disciplinas)
+    siglas_disciplinas = list({d.sigla for d in disciplinas})
+    codigos_institutos = {d.sigla: d.codigo_instituto for d in disciplinas}
 
     run_id = _gerar_run_id()
     path = _run_path(run_id)
@@ -285,6 +303,7 @@ def criar_run(siglas_disciplinas: Iterable[str]) -> str:
         "concluidas": [],
         "falhas": {},
         "pendentes": siglas_disciplinas,
+        "codigos_institutos": codigos_institutos,
     }
 
     _gravar_run(run_id, dados)
