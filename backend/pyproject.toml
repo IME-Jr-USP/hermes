@@ -6,7 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "chromadb>=1.5.9",
     "fastapi>=0.141.1",
-    "jupiterweb-scraper>=1.1.2",
+    "jupiterweb-scraper>=1.1.3",
     "langchain>=1.3.16",
     "langchain-core>=1.6.0",
     "langgraph>=1.2.11",
