@@ -13,7 +13,16 @@ DB_DISTANCE_METRIC: Final = "cosine"
 DB_EMBEDDING_NORMALIZE: Final = True  # para similaridade por cosseno
 DB_UPSERT_BATCH_SIZE: Final = 50
 DB_DELETE_BATCH_SIZE: Final = 50
-DB_DOCUMENT_CHAVES: Final = ("ementa", "conteudo programatico", "objetivos")
+DB_BIBLIOGRAFIA_SECOES = (
+    ("bibliografia", ""),
+    ("bibliografia basica", "Bibliografia básica"),
+    ("bibliografia complementar", "Bibliografia complementar"),
+)
+DB_DOCUMENT_SECOES: Final = (
+    ("ementa", "Ementa", 2000),
+    ("objetivos", "Objetivos", 1500),
+    ("conteudo programatico", "Conteúdo programático", 2500),
+)
 
 # ---------------------------------- Busca ----------------------------------- #
 BUSCA_MAX_RESULTADOS: Final = 20
@@ -34,6 +43,7 @@ class MetaKey:
     DEPARTAMENTO: Final = "departamento"
     CREDITOS_AULA: Final = "creditos_aula"
     CREDITOS_TRABALHO: Final = "creditos_trabalho"
+    CREDITOS_TOTAL: Final = "creditos_total"
     CARGA_HORARIA_TOTAL: Final = "carga_horaria_total"
     TIPO: Final = "tipo"
     ATIVACAO: Final = "ativacao"
@@ -41,19 +51,18 @@ class MetaKey:
     EMENTA: Final = "ementa"
     OBJETIVOS: Final = "objetivos"
     CONTEUDO_PROGRAMATICO: Final = "conteudo_programatico"
+    DOCENTES_RESPONSAVEIS: Final = "docentes_responsaveis"
     AVALIACAO_METODO: Final = "avaliacao_metodo"
     AVALIACAO_CRITERIO: Final = "avaliacao_criterio"
     AVALIACAO_NORMA_RECUP: Final = "avaliacao_norma_recup"
-    DOCENTES_RESPONSAVEIS: Final = "docentes_responsaveis"
     BIBLIOGRAFIA: Final = "bibliografia"
-    PROFESSORES: Final = "professores"
-    TIPOS_VAGA: Final = "tipos_vaga"
-    DIAS_SEMANA_OFERECIDA: Final = "dias_semana_oferecida"
-    HORARIOS_OFERECIDA: Final = "horarios_oferecida"
-    TURMAS_OFERECIDAS: Final = "turmas_oferecidas"
+    TEM_REQUISITOS: Final = "tem_requisitos"
+    REQUISITOS_JSON: Final = "requisitos_json"
+    PERIODO_IDEAL_JSON: Final = "periodo_ideal_json"
     URL_PRINCIPAL: Final = "url_principal"
     URL_OFERECIMENTO: Final = "url_oferecimento"
     URL_REQUISITOS: Final = "url_requisitos"
+    URL_LISTAGEM_INSTITUTO: Final = "url_listagem_instituto"
     ULTIMA_ATUALIZACAO: Final = "ultima_atualizacao"
 
 

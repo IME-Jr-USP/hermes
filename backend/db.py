@@ -14,14 +14,25 @@ from chromadb.api.types import Metadata
 from chromadb.utils import embedding_functions
 from config import settings
 from constants import (
+    DB_BIBLIOGRAFIA_SECOES,
     DB_COLLECTION_NAME,
     DB_DELETE_BATCH_SIZE,
     DB_DISTANCE_METRIC,
+    DB_DOCUMENT_SECOES,
     DB_EMBEDDING_NORMALIZE,
     DB_UPSERT_BATCH_SIZE,
+    MetaKey,
 )
 from jupiterweb import Disciplina, Instituto, obter_instituto, obter_institutos
-from utils import agora_iso, get_logger
+from utils import (
+    agora_iso,
+    get_logger,
+    limpar_metadata,
+    limpar_texto,
+    serializar_requisitos,
+    texto_para_int,
+    truncar_texto,
+)
 
 logger = get_logger(__name__)
 logging.getLogger("sentence_transformers").setLevel(logging.INFO)
@@ -75,18 +86,101 @@ def _obter_id_disciplina(disciplina: Disciplina) -> str:
 def _obter_metadata_disciplina(disciplina: Disciplina) -> Metadata:
     """Devolve os metadados da disciplina para serem usados no banco de dados."""
 
-    instituto = obter_instituto(disciplina.codigo_instituto)
+    dados = disciplina.obter_dados()
+    instituto = obter_instituto(disciplina.codigo_instituto) if disciplina.codigo_instituto else None
 
-    return {
-        "ultima_atualizacao": time.time(),
-        "nome_instituto": instituto.nome if instituto else "",
-    }  # TODO
+    metadata = {}
+
+    # identificação
+    metadata[MetaKey.SIGLA] = disciplina.sigla
+    metadata[MetaKey.NOME] = limpar_texto(dados.get("nome"))
+    metadata[MetaKey.NOME_INGLES] = limpar_texto(dados.get("nome ingles"))
+
+    # instituto
+    metadata[MetaKey.INSTITUTO_NOME] = instituto.nome if instituto else None
+    metadata[MetaKey.INSTITUTO_ABREV] = instituto.abrev if instituto else None
+    metadata[MetaKey.INSTITUTO_CODIGO] = instituto.codigo if instituto else None
+    metadata[MetaKey.INSTITUTO_CAMPUS] = instituto.campus if instituto else None
+    metadata[MetaKey.DEPARTAMENTO] = limpar_texto(dados.get("departamento"))
+
+    # créditos e tipo
+    metadata[MetaKey.CREDITOS_AULA] = texto_para_int(dados.get("creditos aula"), 0)
+    metadata[MetaKey.CREDITOS_TRABALHO] = texto_para_int(dados.get("creditos trabalho"), 0)
+    metadata[MetaKey.CREDITOS_TOTAL] = metadata[MetaKey.CREDITOS_AULA] + metadata[MetaKey.CREDITOS_TRABALHO]
+    metadata[MetaKey.CARGA_HORARIA_TOTAL] = texto_para_int(dados.get("carga horaria total"))
+    metadata[MetaKey.TIPO] = limpar_texto(dados.get("tipo"))
+
+    # ativação e desativação
+    metadata[MetaKey.ATIVACAO] = limpar_texto(dados.get("ativacao"))
+    metadata[MetaKey.DESATIVACAO] = limpar_texto(dados.get("desativacao"))
+
+    # conteúdo (para exibição)
+    metadata[MetaKey.EMENTA] = limpar_texto(dados.get("ementa"))
+    metadata[MetaKey.OBJETIVOS] = limpar_texto(dados.get("objetivos"))
+    metadata[MetaKey.CONTEUDO_PROGRAMATICO] = limpar_texto(dados.get("conteudo programatico"))
+    metadata[MetaKey.DOCENTES_RESPONSAVEIS] = limpar_texto(dados.get("docente(s) responsavel(eis)"))
+
+    # método de avaliação
+    avaliacao = dados.get("instrumentos e criterios de avaliacao", {})
+    if not isinstance(avaliacao, dict):
+        avaliacao = {"metodo de avaliacao": avaliacao}
+
+    metadata[MetaKey.AVALIACAO_METODO] = limpar_texto(avaliacao.get("metodo de avaliacao"))
+    metadata[MetaKey.AVALIACAO_CRITERIO] = limpar_texto(avaliacao.get("criterio de avaliacao"))
+    metadata[MetaKey.AVALIACAO_NORMA_RECUP] = limpar_texto(avaliacao.get("norma de recuperacao"))
+
+    # bibliografia
+    bibliografia = []
+    for chave, rotulo in DB_BIBLIOGRAFIA_SECOES:
+        texto = limpar_texto(dados.get(chave))
+        if texto:
+            bibliografia.append(f"{rotulo}:\n{texto}" if rotulo else texto)
+    metadata[MetaKey.BIBLIOGRAFIA] = "\n\n".join(bibliografia)
+
+    # requisitos e período ideal
+    requisitos = dados.get("requisitos", {})
+    periodo_ideal = dados.get("periodo ideal", {})
+
+    metadata[MetaKey.TEM_REQUISITOS] = bool(requisitos)
+    metadata[MetaKey.REQUISITOS_JSON] = serializar_requisitos(requisitos)
+    metadata[MetaKey.PERIODO_IDEAL_JSON] = json.dumps(periodo_ideal, ensure_ascii=False) if periodo_ideal else None
+
+    # TODO: oferecimentos (horários, turmas e professores)
+
+    # urls
+    metadata[MetaKey.URL_PRINCIPAL] = disciplina.url_principal
+    metadata[MetaKey.URL_REQUISITOS] = disciplina.url_requisitos
+    metadata[MetaKey.URL_OFERECIMENTO] = disciplina.url_oferecimento
+    metadata[MetaKey.URL_LISTAGEM_INSTITUTO] = instituto.url_listagem if instituto else None
+
+    # outros
+    metadata[MetaKey.ULTIMA_ATUALIZACAO] = time.time()
+
+    return limpar_metadata(metadata, disciplina)
 
 
 def _obter_document_disciplina(disciplina: Disciplina) -> str:
     """Devolve o documento da disciplina para ser usado no banco de dados."""
 
-    return disciplina.obter_dados().get("ementa", "")[:50]  # TODO
+    dados = disciplina.obter_dados()
+
+    nome = limpar_texto(dados.get("nome"))
+    instituto = obter_instituto(disciplina.codigo_instituto).nome if disciplina.codigo_instituto else limpar_texto(dados.get("instituto"))
+    departamento = limpar_texto(dados.get("departamento"))
+
+    titulo = f"Disciplina: {nome}"
+    if instituto:
+        titulo += f"\nInstituto: {instituto}"
+    if departamento:
+        titulo += f"\nDepartamento: {departamento}"
+
+    secoes = [titulo]
+
+    for chave, rotulo, limite in DB_DOCUMENT_SECOES:
+        texto = limpar_texto(dados.get(chave))
+        secoes.append(f"{rotulo}: {truncar_texto(texto, limite)}")
+
+    return "\n\n".join(secoes)
 
 
 # ----------------------------- Operações básicas ---------------------------- #
@@ -246,19 +340,36 @@ def _processar_pendentes(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) ->
         disciplinas = [Disciplina(s, codigo_instituto=dados["codigos_institutos"].get(s)) for s in batch]
         logger.debug("Lote %s/%s (%s): obtendo dados das %s disciplinas", n, num_lotes, run_id, len(disciplinas))
 
+        existentes: list[Disciplina] = []
+        inexistentes: list[Disciplina] = []
+
         for i in range(len(disciplinas)):
             d = disciplinas[i]
 
             logger.debug("Lote %s/%s (%s): obtendo dados da disciplina %s (%s/%s)", n, num_lotes, run_id, d.sigla, i + 1, len(disciplinas))
             d.obter_dados()
 
-        logger.debug("Lote %s/%s (%s): enviando %s disciplinas", n, num_lotes, run_id, len(disciplinas))
-        resultado = upsert_disciplinas(disciplinas, batch_size=batch_size)
+            if d.encontrada():
+                existentes.append(d)
+            else:
+                inexistentes.append(d)
+                logger.warning("Disciplina %s não encontrada no Jupiterweb (não será gravada)", d.sigla)
+
+        logger.debug(
+            "Lote %s/%s (%s): enviando %s disciplinas encontradas (%s inexistentes)", n, num_lotes, run_id, len(existentes), len(inexistentes)
+        )
+        resultado = upsert_disciplinas(existentes, batch_size=batch_size)
 
         dados["concluidas"].extend(resultado.ok)
         dados["falhas"].update(resultado.falhas)
-        _gravar_run(run_id, dados)
 
+        if len(batch) > 1 and not existentes:  # lote sem disciplinas existentes (suspeita de erro no site)
+            dados["falhas"].update({d.sigla: "pertence a lote com apenas disciplinas inexistentes (suspeita de site instável)" for d in inexistentes})
+            logger.warning("Lote %s/%s (%s): nenhuma disciplina encontrada; registradas como falha (suspeita de site instável)", n, num_lotes, run_id)
+        else:
+            dados["concluidas"].extend(d.sigla for d in inexistentes)  # disciplinas inexistentes são consideradas processadas
+
+        _gravar_run(run_id, dados)
         logger.info("Lote %s/%s (%s): processado (%s enviadas, %s falhas)", n, num_lotes, run_id, len(resultado.ok), len(resultado.falhas))
 
     logger.info("Pendentes de %s processadas: restam %s pendentes e %s falhas", run_id, len(dados["pendentes"]), len(dados["falhas"]))
@@ -372,11 +483,9 @@ def sincronizar_disciplinas(institutos: Iterable[Instituto] | None = None, batch
     Retorna run_id da run de atualização do banco de dados utilizado para a sincronização.
     """
 
-    # TODO filtrar por oferecidas apenas
+    # TODO: filtrar por oferecidas apenas
 
-    institutos = list(institutos)
-    if not institutos:
-        institutos = obter_institutos()
+    institutos = list(institutos) if institutos else obter_institutos()
 
     logger.info("Obtendo disciplinas de %s institutos para sincronização", len(institutos))
 
