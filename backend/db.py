@@ -165,12 +165,13 @@ def _obter_document_disciplina(disciplina: Disciplina) -> str:
     dados = disciplina.obter_dados()
 
     nome = limpar_texto(dados.get("nome"))
-    instituto = obter_instituto(disciplina.codigo_instituto).nome if disciplina.codigo_instituto else limpar_texto(dados.get("instituto"))
+    instituto = obter_instituto(disciplina.codigo_instituto) if disciplina.codigo_instituto else None
+    instituto_nome = instituto.nome if instituto else limpar_texto(dados.get("instituto"))
     departamento = limpar_texto(dados.get("departamento"))
 
     titulo = f"Disciplina: {nome}"
-    if instituto:
-        titulo += f"\nInstituto: {instituto}"
+    if instituto_nome:
+        titulo += f"\nInstituto: {instituto_nome}"
     if departamento:
         titulo += f"\nDepartamento: {departamento}"
 
@@ -178,7 +179,8 @@ def _obter_document_disciplina(disciplina: Disciplina) -> str:
 
     for chave, rotulo, limite in DB_DOCUMENT_SECOES:
         texto = limpar_texto(dados.get(chave))
-        secoes.append(f"{rotulo}: {truncar_texto(texto, limite)}")
+        if texto:
+            secoes.append(f"{rotulo}: {truncar_texto(texto, limite)}")
 
     return "\n\n".join(secoes)
 
