@@ -167,6 +167,30 @@ class FiltroDisciplinas(BaseModel):
         description=("Número máximo de créditos-trabalho da disciplina, inclusive. " "Se None, não há restrição máxima."),
     )
 
+    creditos_total_min: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Número mínimo de créditos totais da disciplina, inclusive. "
+            "Créditos totais correspondem à soma dos créditos-aula e dos "
+            "créditos-trabalho. Use este campo quando o usuário mencionar "
+            "créditos sem especificar créditos-aula ou créditos-trabalho,"
+            "ou quando mencionar créditos totais."
+        ),
+    )
+
+    creditos_total_max: int | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Número máximo de créditos totais da disciplina, inclusive. "
+            "Créditos totais correspondem à soma dos créditos-aula e dos "
+            "créditos-trabalho. Use este campo quando o usuário mencionar "
+            "créditos sem especificar créditos-aula ou créditos-trabalho,"
+            "ou quando mencionar créditos totais."
+        ),
+    )
+
     carga_horaria_total_min: int | None = Field(
         default=None,
         ge=0,
