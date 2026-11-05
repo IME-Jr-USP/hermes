@@ -96,7 +96,13 @@ def consultar_disciplinas(
         "siglas_nao_encontradas": [sigla for sigla in siglas if sigla not in ids_encontrados],
     }
 
-    logger.info("consultar_disciplinas: %s encontradas e %s não encontradas", len(resposta["disciplinas"]), len(resposta["siglas_nao_encontradas"]))
+    if ids_encontrados:
+        logger.info("consultar_disciplinas: encontrou %s disciplinas (%s)", len(ids_encontrados), list(ids_encontrados))
+    if len(ids_encontrados) < len(siglas):
+        logger.info(
+            "consultar_disciplinas: não encontrou %s disciplinas (%s)", len(siglas) - len(ids_encontrados), list(set(siglas) - ids_encontrados)
+        )
+
     return json.dumps(resposta, ensure_ascii=False, indent=2)
 
 
@@ -482,7 +488,7 @@ def buscar_disciplinas(
 
         saida.append(item)
 
-    logger.info("buscar_disciplinas: %s encontradas", len(saida))
+    logger.info("buscar_disciplinas: encontrou %s disciplinas (%s)", len(saida), ids)
     return json.dumps(saida, ensure_ascii=False, indent=2)
 
 
