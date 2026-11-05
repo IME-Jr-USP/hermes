@@ -380,30 +380,6 @@ def buscar_disciplinas(
 # --------------------------------- Interação -------------------------------- #
 
 
-def _extrair_texto_resposta(conteudo: Any) -> str:
-    """Extrai o texto de uma resposta do modelo."""
-
-    if isinstance(conteudo, str):
-        return conteudo
-
-    if isinstance(conteudo, list):
-        partes = []
-
-        for bloco in conteudo:
-            if isinstance(bloco, str):
-                partes.append(bloco)
-            elif isinstance(bloco, dict):
-                tipo = bloco.get("type")
-                texto = bloco.get("text")
-
-                if tipo in (None, "text") and isinstance(texto, str):
-                    partes.append(texto)
-
-        return "\n".join(partes)
-
-    return ""
-
-
 @lru_cache
 def obter_agent() -> CompiledStateGraph:
     """Retorna novo agente do Hermes (única instância, criada na primeira
@@ -434,4 +410,4 @@ def obter_resposta(mensagem: str, conversa_id: str) -> str:
         config=config,
     )
 
-    return _extrair_texto_resposta(resultado)
+    return resultado["messages"][-1].content
