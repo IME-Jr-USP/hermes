@@ -18,8 +18,7 @@ class Settings(BaseSettings):
     )
 
     # Agente
-    agent_model: str = "google/gemini-3.6-flash"  # id do OpenRouter
-    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    agent_model: str = "openrouter/free"  # id do OpenRouter
     openrouter_api_key: SecretStr = SecretStr("")
     system_prompt_path: Path = BASE_DIR / "prompts" / "system_prompt.md"
 

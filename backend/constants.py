@@ -66,9 +66,6 @@ class MetaKey:
     ULTIMA_ATUALIZACAO: Final = "ultima_atualizacao"
 
 
-# ---------------------------------- Agente ---------------------------------- #
-
-
 class CampusDisciplina(str, Enum):
     LORENA = "Lorena"
     LESTE = "Leste"
