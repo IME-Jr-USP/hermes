@@ -241,10 +241,12 @@ def buscar_disciplinas(
             description=(
                 "Palavras-chave e expressões curtas que representem os temas, "
                 "conceitos ou áreas de interesse do usuário. Combine vários "
-                "termos quando necessário. Não inclua siglas de disciplinas, "
-                "filtros determinísticos ou a solicitação completa em linguagem "
-                "natural. Utilize None quando a busca depender exclusivamente "
-                "de filtros determinísticos."
+                "termos relacionados em uma única string, preferencialmente "
+                "separados por vírgulas (ex.: 'evolução darwiniana, seleção "
+                "natural, origem das espécies'). Não inclua a solicitação "
+                "completa em linguagem natural, siglas de disciplinas ou "
+                "critérios determinísticos. Utilize None quando a busca "
+                "depender exclusivamente de filtros."
             )
         ),
     ] = None,
