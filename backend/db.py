@@ -339,40 +339,44 @@ def _processar_pendentes(run_id: str, batch_size: int = DB_UPSERT_BATCH_SIZE) ->
         batch = dados["pendentes"][:batch_size]
         dados["pendentes"] = dados["pendentes"][batch_size:]
 
-        disciplinas = [Disciplina(s, codigo_instituto=dados["codigos_institutos"].get(s)) for s in batch]
-        logger.debug("Lote %s/%s (%s): obtendo dados das %s disciplinas", n, num_lotes, run_id, len(disciplinas))
+        disciplinas: list[Disciplina] = [Disciplina(s, codigo_instituto=dados["codigos_institutos"].get(s)) for s in batch]
+        disciplinas_existentes: list[Disciplina] = []
 
-        existentes: list[Disciplina] = []
-        inexistentes: list[Disciplina] = []
+        logger.debug("Lote %s/%s (%s): obtendo dados das %s disciplinas", n, num_lotes, run_id, len(disciplinas))
 
         for i in range(len(disciplinas)):
             d = disciplinas[i]
-
             logger.debug("Lote %s/%s (%s): obtendo dados da disciplina %s (%s/%s)", n, num_lotes, run_id, d.sigla, i + 1, len(disciplinas))
-            d.obter_dados()
 
-            if d.encontrada():
-                existentes.append(d)
-            else:
-                inexistentes.append(d)
-                logger.warning("Disciplina %s não encontrada no Jupiterweb (não será gravada)", d.sigla)
+            try:
+                d.obter_dados()
+            except Exception as e:
+                dados["falhas"][d.sigla] = str(e)
+                logger.exception("Falha ao obter dados da disciplina %s (registrada como falha em %s)", d.sigla, run_id)
+                continue
+
+            if not d.encontrada():
+                dados["concluidas"].append(d.sigla)
+                logger.warning("Disciplina %s não foi encontrada no Jupiterweb (não será gravada em %s)", d.sigla, run_id)
+                continue
+
+            disciplinas_existentes.append(d)
 
         logger.debug(
-            "Lote %s/%s (%s): enviando %s disciplinas encontradas (%s inexistentes)", n, num_lotes, run_id, len(existentes), len(inexistentes)
+            "Lote %s/%s (%s): enviando as %s disciplinas encontradas (do total de %s)",
+            n,
+            num_lotes,
+            run_id,
+            len(disciplinas_existentes),
+            len(disciplinas),
         )
-        resultado = upsert_disciplinas(existentes, batch_size=batch_size)
+        resultado = upsert_disciplinas(disciplinas_existentes, batch_size=batch_size)
 
         dados["concluidas"].extend(resultado.ok)
         dados["falhas"].update(resultado.falhas)
 
-        if len(batch) > 1 and not existentes:  # lote sem disciplinas existentes (suspeita de erro no site)
-            dados["falhas"].update({d.sigla: "pertence a lote com apenas disciplinas inexistentes (suspeita de site instável)" for d in inexistentes})
-            logger.warning("Lote %s/%s (%s): nenhuma disciplina encontrada; registradas como falha (suspeita de site instável)", n, num_lotes, run_id)
-        else:
-            dados["concluidas"].extend(d.sigla for d in inexistentes)  # disciplinas inexistentes são consideradas processadas
-
         _gravar_run(run_id, dados)
-        logger.info("Lote %s/%s (%s): processado (%s enviadas, %s falhas)", n, num_lotes, run_id, len(resultado.ok), len(resultado.falhas))
+        logger.info("Lote %s/%s (%s): processado (%s enviadas, %s falhas de envio)", n, num_lotes, run_id, len(resultado.ok), len(resultado.falhas))
 
     logger.info("Pendentes de %s processadas: restam %s pendentes e %s falhas", run_id, len(dados["pendentes"]), len(dados["falhas"]))
 
