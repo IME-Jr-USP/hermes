@@ -380,12 +380,19 @@ def buscar_disciplinas(
     o conteúdo das disciplinas, incluindo ementas, objetivos e conteúdo
     programático. Não utilize siglas isoladas como consulta semântica.
 
-    Quando o usuário estabelecer critérios determinísticos, como instituto,
-    campus, créditos ou carga horária, aplique-os por meio dos filtros.
-    Todas as condições informadas devem ser satisfeitas simultaneamente,
-    exceto quando houver alternativas para um mesmo critério. Por exemplo,
-    se o usuário aceitar disciplinas do IME ou da Poli, basta que a disciplina
-    pertença a um desses institutos.
+    Planeje a chamada considerando a solicitação inteira: quando houver
+    um assunto de interesse e critérios determinísticos, como instituto,
+    campus, créditos ou carga horária, combine a consulta semântica e todos
+    os filtros pertinentes em uma única chamada. Não faça uma chamada
+    apenas com filtros para depois realizar outra com o assunto, nem
+    divida os critérios em chamadas separadas. Não faça chamadas duplicadas
+    ou paralelas com os mesmos parâmetros.
+
+    Quando o usuário estabelecer critérios determinísticos, aplique-os
+    por meio dos filtros. Todas as condições informadas devem ser satisfeitas
+    simultaneamente, exceto quando houver alternativas para um mesmo critério.
+    Por exemplo, se o usuário aceitar disciplinas do IME ou da Poli, basta
+    que a disciplina pertença a um desses institutos.
 
     Se o usuário solicitar disciplinas apenas por critérios determinísticos,
     sem especificar um assunto de interesse, realize a busca utilizando
@@ -396,6 +403,12 @@ def buscar_disciplinas(
     que possam ser inferidos com segurança do contexto da conversa. Ao
     refinar uma busca anterior, preserve os interesses e filtros que
     continuem pertinentes.
+
+    Evite novas chamadas quando os resultados anteriores já forem suficientes
+    para atender à solicitação. Uma segunda busca só se justifica quando
+    os resultados da primeira forem insuficientes ou pouco relevantes.
+    Nesse caso, refine a consulta para resolver a insuficiência identificada,
+    preservando os filtros anteriores pertinentes.
 
     A quantidade de resultados retornados pela ferramenta representa o
     conjunto de disciplinas candidatas à seleção, não necessariamente a
