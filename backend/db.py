@@ -412,7 +412,7 @@ def criar_run(disciplinas: Iterable[Disciplina]) -> str:
     """
 
     disciplinas = list(disciplinas)
-    siglas_disciplinas = list({d.sigla for d in disciplinas})
+    siglas_disciplinas = list(dict.fromkeys([d.sigla for d in disciplinas]))
     codigos_institutos = {d.sigla: d.codigo_instituto for d in disciplinas}
 
     run_id = _gerar_run_id()
