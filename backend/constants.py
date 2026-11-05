@@ -13,7 +13,7 @@ DB_DISTANCE_METRIC: Final = "cosine"
 DB_EMBEDDING_NORMALIZE: Final = True  # para similaridade por cosseno
 DB_UPSERT_BATCH_SIZE: Final = 50
 DB_DELETE_BATCH_SIZE: Final = 50
-DB_BIBLIOGRAFIA_SECOES = (
+DB_BIBLIOGRAFIA_SECOES: Final = (
     ("bibliografia", ""),
     ("bibliografia basica", "Bibliografia básica"),
     ("bibliografia complementar", "Bibliografia complementar"),
