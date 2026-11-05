@@ -507,5 +507,6 @@ def obter_resposta(mensagem: str, conversa_id: str) -> str:
         )
     except Exception:
         logger.exception("obter_resposta: erro durante a execução (conversa_id=%s)", conversa_id)
+        raise
 
     return resultado["messages"][-1].content
