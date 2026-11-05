@@ -298,6 +298,12 @@ class FiltroDisciplinas(BaseModel):
         if self.creditos_trabalho_max is not None:
             condicoes.append({MetaKey.CREDITOS_TRABALHO: {"$lte": self.creditos_trabalho_max}})
 
+        if self.creditos_total_min is not None:
+            condicoes.append({MetaKey.CREDITOS_TOTAL: {"$gte": self.creditos_total_min}})
+
+        if self.creditos_total_max is not None:
+            condicoes.append({MetaKey.CREDITOS_TOTAL: {"$lte": self.creditos_total_max}})
+
         if self.carga_horaria_total_min is not None:
             condicoes.append({MetaKey.CARGA_HORARIA_TOTAL: {"$gte": self.carga_horaria_total_min}})
 
