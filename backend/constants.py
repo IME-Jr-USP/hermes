@@ -78,3 +78,9 @@ class CampusDisciplina(str, Enum):
     BUTANTA = "Butantã"
     IPIRANGA = "Ipiranga"
     SAO_CARLOS = "São Carlos"
+
+
+# ---------------------------------- Agente ---------------------------------- #
+MAX_LENGTH_MENSAGEM = 10_000
+MAX_LENGTH_CONVERSA_ID = 128
+

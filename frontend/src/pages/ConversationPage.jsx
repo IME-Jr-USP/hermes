@@ -11,146 +11,57 @@ import remarkGfm from 'remark-gfm';
 
 import './ConversationPage.css';
 
-/* ========================================
-   DEMO
-======================================== */
+/* -------------------------------------------------------------------------- */
+/*                                     API                                    */
+/* -------------------------------------------------------------------------- */
 
-const DEMO_RESPONSE = `
-# Guia completo de disciplinas de IA
+const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:8000').replace(/\/+$/, '');
+const pendingRequests = new Map(); // evitar chamadas duplicadas
 
-Encontrei **3 disciplinas** que combinam com os seus interesses em *inteligência artificial* e ~~programação básica~~ aprendizado de máquina. Todas têm atividades no período da tarde e podem entrar na sua grade. Veja também o [catálogo de disciplinas](https://example.com/catalogo) para mais detalhes, ou acesse direto https://example.com/matricula.
-
-Este parágrafo tem uma segunda linha logo abaixo, separada por quebra simples.
-Ela deve aparecer na linha seguinte, dentro do mesmo parágrafo.
-
----
-
-## Disciplinas recomendadas
-
-### 1. Introdução ao Aprendizado de Máquina
-
-#### IME — Instituto de Matemática e Estatística
-
-| Informação | Detalhes |
-| --- | --- |
-| Código | MAC0460 |
-| Créditos | 4 créditos-aula |
-| Horário | Segundas e quartas, 14h–15h40 |
-| Pré-requisitos | MAC0110 e MAE0121 |
-
-Excelente opção para aprofundar seus conhecimentos em **modelos estatísticos**, *algoritmos de aprendizado* e programação em Python.
-
-- **Área:** Inteligência Artificial
-- **Nível:** Intermediário
-- **Avaliação:**
-  - Duas provas escritas
-  - Listas de exercícios semanais
-    - Entrega pelo sistema da disciplina
-    - Resolução individual
-  - Projeto final em dupla
-
-### 2. Redes Neurais e Aprendizado Profundo
-
-#### IME — Instituto de Matemática e Estatística
-
-| Informação | Detalhes | Observação |
-| --- | --- | --- |
-| Código | MAC5921 | Pós-graduação |
-| Créditos | 6 créditos-aula | Com trabalho |
-| Horário | Terças e quintas, 14h–15h40 | Sala 232 |
-
-Esta disciplina exige boa base em álgebra linear. Os passos recomendados para se preparar são:
-
-1. Revisar álgebra linear e cálculo multivariável
-2. Praticar Python com NumPy
-   1. Operações com matrizes
-   2. Gradiente e derivadas parciais
-3. Ler o capítulo inicial do livro-texto
-4. Conversar com o professor antes da matrícula
-
-> **Dica:** disciplinas de pós-graduação podem ser cursadas como aluno especial, mas as vagas são limitadas e dependem de aprovação do docente.
->
-> > Confirme sempre no JúpiterWeb antes da matrícula.
-
-### 3. Visão Computacional
-
-#### IME — Instituto de Matemática e Estatística
-
-Veja um exemplo de como processar imagens com a biblioteca \`OpenCV\`, usada ao longo do curso:
-
-\`\`\`python
-import cv2
-
-imagem = cv2.imread("foto.jpg")
-cinza = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-bordas = cv2.Canny(cinza, 100, 200)
-
-cv2.imwrite("bordas.png", bordas)
-print(f"Dimensões: {bordas.shape}")
-\`\`\`
-
-Para instalar a dependência, use o terminal:
-
-\`\`\`bash
-pip install opencv-python numpy
-\`\`\`
-
----
-
-## Exemplos de imagens
-
-Imagem **grande e panorâmica** (deve ser limitada pela largura máxima):
-
-![Imagem panorâmica de exemplo](https://placehold.co/1600x700/png?text=Panoramica+1600x700)
-
-Imagem **vertical** (deve ser limitada pela altura máxima):
-
-![Imagem vertical de exemplo](https://placehold.co/600x1200/png?text=Vertical+600x1200)
-
-Imagem **pequena** (deve manter o tamanho natural, centralizada):
-
-![Imagem pequena de exemplo](https://placehold.co/160x160/png?text=160x160)
-
----
-
-## Checklist para a matrícula
-
-- [x] Verificar pré-requisitos no JúpiterWeb
-- [x] Conferir conflitos de horário
-- [ ] Falar com a coordenação sobre vagas
-	- [ ] Item 1
-	- [ ] Item 2
-		- Subitem 1
-		- Subitem 2
-		- Subitem 3
-			- [ ] Subtarefa 1
-		- Subitem 4
-- [ ] Confirmar a matrícula dentro do prazo
-
-## Resumo comparativo
-
-| Disciplina | Nível | Créditos | Dificuldade |
-| :--- | :---: | ---: | :---: |
-| Introdução ao Aprendizado de Máquina | Graduação | 4 | Média |
-| Redes Neurais e Aprendizado Profundo | Pós-graduação | 6 | Alta |
-| Visão Computacional | Graduação | 4 | Média |
-
-Se quiser, posso montar uma **grade semanal** com essas disciplinas ou buscar *alternativas* em outros institutos. Use \`Ctrl + F\` na página do catálogo para filtrar por código.
-`;
-
-async function getRecommendations(query) {
+function getResponse(query, conversaId, requestId) {
 	if (!query.trim()) {
 		throw new Error('Consulta vazia.');
 	}
 
-	await new Promise((resolve) => setTimeout(resolve, 2500));
+	if (pendingRequests.has(requestId)) {
+		return pendingRequests.get(requestId);
+	}
 
-	return DEMO_RESPONSE;
+	const promise = fetch(`${API_URL}/api/chat`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({
+			mensagem: query,
+			conversa_id: conversaId,
+		}),
+	})
+		.then(async (response) => {
+			const data = await response.json().catch(() => null);
+
+			if (!response.ok) {
+				throw new Error(data?.detail ?? 'Não foi possível obter uma resposta do Hermes.');
+			}
+
+			if (typeof data?.resposta !== 'string') {
+				throw new Error('O servidor retornou uma resposta inválida.');
+			}
+
+			return data.resposta;
+		})
+		.finally(() => {
+			pendingRequests.delete(requestId);
+		});
+
+	pendingRequests.set(requestId, promise);
+
+	return promise;
 }
 
-/* ========================================
-   USER QUERY
-======================================== */
+/* -------------------------------------------------------------------------- */
+/*                                 Componentes                                */
+/* -------------------------------------------------------------------------- */
 
 function UserQuery({ query, elementRef }) {
 	return (
@@ -163,10 +74,6 @@ function UserQuery({ query, elementRef }) {
 		</section>
 	);
 }
-
-/* ========================================
-   ASSISTANT
-======================================== */
 
 function AssistantHeading({ loading }) {
 	return (
@@ -222,10 +129,6 @@ function AssistantResponse({ response }) {
 	);
 }
 
-/* ========================================
-   CONVERSATION INPUT
-======================================== */
-
 function ConversationInput({ loading, onSubmit, showScrollToBottom, onScrollToBottom }) {
 	const [message, setMessage] = useState('');
 	const textareaRef = useRef(null);
@@ -246,8 +149,6 @@ function ConversationInput({ loading, onSubmit, showScrollToBottom, onScrollToBo
 			textareaRef.current?.focus();
 		}
 	}, [loading]);
-
-
 
 	return (
 		<div className="conversation-bottom">
@@ -310,44 +211,36 @@ function ConversationInput({ loading, onSubmit, showScrollToBottom, onScrollToBo
 	);
 }
 
-/* ========================================
-   CONVERSATION PAGE
-======================================== */
-
 function ConversationPage() {
 	const location = useLocation();
 	const initialQuery = location.state?.query?.trim() ?? '';
 	const conversationMainRef = useRef(null);
-
-	/* Histórico da conversa */
-
-	const [history, setHistory] = useState(() =>
-		initialQuery ? [{ question: initialQuery, answer: null, error: null }] : [],
-	);
-
-	/* Requisição atualmente em execução */
-
-	const [request, setRequest] = useState(() =>
-		initialQuery ? { question: initialQuery, index: 0 } : null,
-	);
-
-	/* Scroll automático */
-
 	const latestQueryRef = useRef(null);
 	const [scrollTargetIndex, setScrollTargetIndex] = useState(null);
 
-	/* ========================================
-	   EXECUTAR REQUISIÇÃO
-	======================================== */
+	const [conversaId] = useState(() => crypto.randomUUID());
+	const [history, setHistory] = useState(() =>
+		initialQuery ? [{ question: initialQuery, answer: null, error: null }] : [],
+	);
+	const [request, setRequest] = useState(() =>
+		initialQuery
+			? {
+					question: initialQuery,
+					index: 0,
+					id: crypto.randomUUID(),
+				}
+			: null,
+	);
 
 	useEffect(() => {
 		if (!request) return;
 
 		let cancelled = false;
 
-		async function loadRecommendations() {
+		// Carregar resposta do agente
+		async function loadResponse() {
 			try {
-				const result = await getRecommendations(request.question);
+				const result = await getResponse(request.question, conversaId, request.id);
 
 				if (cancelled) return;
 
@@ -371,17 +264,14 @@ function ConversationPage() {
 			}
 		}
 
-		loadRecommendations();
+		loadResponse();
 
 		return () => {
 			cancelled = true;
 		};
-	}, [request]);
+	}, [request, conversaId]);
 
-	/* ========================================
-	   SCROLL AUTOMÁTICO
-	======================================== */
-
+	// Scroll automático
 	useLayoutEffect(() => {
 		if (scrollTargetIndex === null) return;
 
@@ -391,9 +281,7 @@ function ConversationPage() {
 		});
 	}, [scrollTargetIndex]);
 
-	/* ========================================
-	   BOTÃO SCROLL TO BOTTOM
-	======================================== */
+	// Botão de Scroll to Bottom
 	const [showScrollToBottom, setShowScrollToBottom] = useState(false);
 
 	useEffect(() => {
@@ -437,10 +325,7 @@ function ConversationPage() {
 		});
 	}
 
-	/* ========================================
-	   ENVIAR NOVA MENSAGEM
-	======================================== */
-
+	// Enviar nova mensagem
 	function handleNewQuery(message) {
 		if (request) return;
 
@@ -462,15 +347,13 @@ function ConversationPage() {
 		setRequest({
 			question,
 			index,
+			id: crypto.randomUUID(),
 		});
 
 		setScrollTargetIndex(index);
 	}
 
-	/* ========================================
-	   TENTAR NOVAMENTE
-	======================================== */
-
+	// Tentar novamente
 	function handleRetry(index) {
 		if (request) return;
 
@@ -487,13 +370,11 @@ function ConversationPage() {
 		setRequest({
 			question: item.question,
 			index,
+			id: crypto.randomUUID(),
 		});
 	}
 
-	/* ========================================
-	   RENDERIZAÇÃO
-	======================================== */
-
+	// Renderização
 	if (!initialQuery) {
 		return <Navigate to="/" replace />;
 	}
@@ -544,7 +425,6 @@ function ConversationPage() {
 					);
 				})}
 			</main>
-
 			<ConversationInput
 				loading={request !== null}
 				onSubmit={handleNewQuery}

@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -38,17 +39,24 @@ def consultar_disciplinas(
         ),
     ],
 ) -> str:
-    """Consulta informações detalhadas de uma ou mais disciplinas da USP a partir de suas siglas.
+    """Consulta informações detalhadas de uma ou mais disciplinas da USP a
+    partir de suas siglas.
 
-    Use esta ferramenta quando o usuário já souber a(s) sigla(s) exata(s) da(s)
-    disciplina(s) (ex.: "MAC0110", "PCS3616") ou quando quiser se aprofundar em
-    disciplinas encontradas anteriormente. Não use esta ferramenta para buscar
+    Use esta ferramenta quando o usuário informar a(s) sigla(s) exata(s) da(s)
+    disciplina(s) (ex.: "MAC0110", "PCS3616") ou quando precisar obter
+    informações adicionais sobre disciplinas encontradas anteriormente por meio
+    da ferramenta de busca. Não utilize esta ferramenta para encontrar
     disciplinas por tema ou assunto; nesse caso, utilize a ferramenta de busca
     de disciplinas.
 
-    Se o usuário pedir informações sobre várias disciplinas, passe todas as
-    siglas de uma vez nesta única chamada, em vez de chamar a ferramenta
-    separadamente para cada uma.
+    Consultas em lote: sempre que precisar consultar informações de várias
+    disciplinas, reúna todas as siglas e envie-as em uma única chamada desta
+    ferramenta. Não faça chamadas individuais para cada disciplina quando for
+    possível consultá-las conjuntamente. Ao selecionar disciplinas encontradas
+    em uma busca anterior, determine primeiro quais delas são relevantes para a
+    solicitação do usuário e consulte todas as selecionadas de uma só vez. Faça
+    chamadas adicionais somente se surgir a necessidade de consultar outras
+    disciplinas que não estavam incluídas na consulta anterior.
 
     Retorna os metadados armazenados de cada disciplina encontrada, incluindo
     nome, instituto, campus, ementa, objetivos, conteúdo programático, créditos,
@@ -58,9 +66,8 @@ def consultar_disciplinas(
 
     Returns:
         String JSON contendo:
-        - disciplinas: lista de objetos com todos os metadados das disciplinas
-          encontradas, na mesma ordem das siglas informadas;
-        - siglas_nao_encontradas: lista das siglas que não foram encontradas.
+        - disciplinas: lista de objetos com todos os metadados das disciplinas encontradas, na mesma ordem das siglas informadas;
+        - siglas_nao_encontradas: lista das siglas informadas que não foram encontradas.
     """
 
     siglas = list(dict.fromkeys(s.strip().upper() for s in siglas if s.strip()))
@@ -96,44 +103,44 @@ def consultar_disciplinas(
 class FiltroDisciplinas(BaseModel):
     """Filtros opcionais para restringir a busca de disciplinas.
 
-    Todas as condições informadas são combinadas por conjunção (AND):
-    uma disciplina só é retornada se satisfizer simultaneamente todos
-    os filtros preenchidos.
+    Todas as condições de atributos diferentes são combinadas por
+    conjunção (AND). Uma disciplina só é retornada se satisfizer
+    simultaneamente todos os filtros preenchidos.
+
+    Para atributos representados por listas, basta corresponder a um
+    dos valores informados (OR).
+
+    Os atributos instituto_nomes, instituto_abrevs e instituto_campi
+    aceitam múltiplos valores. Se instituto_nomes e instituto_abrevs
+    forem preenchidos simultaneamente, ambas as condições deverão ser
+    satisfeitas.
 
     Para cada atributo numérico, os limites mínimo e máximo, quando
-    informados, definem um intervalo inclusivo. Se apenas um deles for
-    informado, somente aquela restrição é aplicada.
+    informados, definem um intervalo inclusivo. Se apenas um deles
+    for informado, somente aquela restrição é aplicada.
 
-    Campos None ou omitidos não impõem restrições. Não utilize 0 ou
-    strings vazias para representar a ausência de um filtro.
-
-    Os campos instituto_nome e instituto_abrev representam duas formas
-    de identificar o mesmo instituto. Normalmente, basta informar um
-    deles. Se ambos forem preenchidos, a disciplina deverá corresponder
-    aos dois valores.
+    Campos None ou omitidos não impõem restrições. Listas vazias e
+    strings vazias também são tratadas como ausência de filtro.
     """
 
-    instituto_nome: str | None = Field(
+    instituto_nomes: list[str] | None = Field(
+        default=None,
+        description=("Lista de nomes completos dos institutos responsáveis pelas disciplinas. " "Basta pertencer a um dos institutos informados."),
+    )
+
+    instituto_abrevs: list[str] | None = Field(
         default=None,
         description=(
-            "Nome completo e oficial do instituto responsável pela disciplina "
-            "(ex.: 'Faculdade de Medicina Veterinária e Zootecnia'). "
-            "Utilize o nome completo, não apenas parte dele."
+            "Lista de abreviações dos institutos responsáveis pelas disciplinas "
+            "(ex.: ['IME', 'POLI']). Basta pertencer a um dos institutos informados."
         ),
     )
 
-    instituto_abrev: str | None = Field(
+    instituto_campi: list[CampusDisciplina] | None = Field(
         default=None,
         description=(
-            "Abreviação do instituto responsável pela disciplina "
-            "(ex.: 'IME', 'POLI', 'ESALQ'). Utilize a sigla sem o sufixo "
-            "'-USP'. Maiúsculas e minúsculas são aceitas."
+            "Lista de campi onde os institutos responsáveis pelas disciplinas " "estão localizados. Basta corresponder a um dos campi informados."
         ),
-    )
-
-    instituto_campus: CampusDisciplina | None = Field(
-        default=None,
-        description=("Campus da USP ao qual pertence o instituto responsável pela " "disciplina. Utilize um dos valores permitidos."),
     )
 
     creditos_aula_min: int | None = Field(
@@ -172,39 +179,88 @@ class FiltroDisciplinas(BaseModel):
         description=("Carga horária total máxima da disciplina, em horas, inclusive. " "Se None, não há restrição máxima."),
     )
 
-    @field_validator("instituto_nome", mode="before")
+    @field_validator("instituto_nomes", mode="before")
     @classmethod
-    def normalizar_instituto_nome(cls, valor: Any) -> Any:
+    def normalizar_instituto_nomes(cls, valor: Any) -> Any:
+        if valor is None:
+            return None
+
         if isinstance(valor, str):
-            return valor.strip() or None
+            valor = [valor]
+
+        if isinstance(valor, (list, tuple)):
+            valores = [v.strip() if isinstance(v, str) else v for v in valor]
+            valores = [v for v in valores if v != ""]
+            return valores or None
+
         return valor
 
-    @field_validator("instituto_abrev", mode="before")
+    @field_validator("instituto_abrevs", mode="before")
     @classmethod
-    def normalizar_instituto_abrev(cls, valor: Any) -> Any:
+    def normalizar_instituto_abrevs(cls, valor: Any) -> Any:
+        if valor is None:
+            return None
+
         if isinstance(valor, str):
-            valor = valor.strip().upper()
-            valor = valor.removesuffix("-USP")
-            return valor or None
+            valor = [valor]
+
+        if isinstance(valor, (list, tuple)):
+            valores = [v.strip().upper().removesuffix("-USP") if isinstance(v, str) else v for v in valor]
+            valores = [v for v in valores if v != ""]
+            return valores or None
+
         return valor
 
-    def montar_where(self) -> dict[str, Any] | None:
-        """Constrói o filtro where do ChromaDB equivalente aos filtros informados.
+    @field_validator("instituto_campi", mode="before")
+    @classmethod
+    def normalizar_instituto_campi(cls, valor: Any) -> Any:
+        if valor is None:
+            return None
 
-        Todas as condições são combinadas por conjunção (AND).
-        Retorna None se nenhum filtro estiver preenchido.
+        if isinstance(valor, str):
+            valor = [valor]
+
+        if isinstance(valor, (list, tuple)):
+            valores = [v.strip() if isinstance(v, str) else v for v in valor]
+            valores = [v for v in valores if v != ""]
+            return valores or None
+
+        return valor
+
+    @staticmethod
+    def _adicionar_filtro_lista(
+        condicoes: list[dict],
+        chave: str,
+        valores: list | None,
+    ) -> None:
+        """Adiciona uma condição de igualdade ou pertencimento à lista."""
+
+        if not valores:
+            return
+
+        valores = [v.value if isinstance(v, Enum) else v for v in valores]
+
+        if len(valores) == 1:
+            condicoes.append({chave: valores[0]})
+        else:
+            condicoes.append({chave: {"$in": valores}})
+
+    def montar_where(self) -> dict | None:
+        """
+        Constrói o filtro where do ChromaDB equivalente aos filtros informados.
+
+        As alternativas de um mesmo atributo são combinadas por disjunção
+        (OR): basta corresponder a um dos valores informados.
+
+        Os filtros de atributos diferentes são combinados por conjunção
+        (AND): todas as condições devem ser satisfeitas.
         """
 
-        condicoes: list[dict[str, Any]] = []
+        condicoes = []
 
-        if self.instituto_nome is not None:
-            condicoes.append({MetaKey.INSTITUTO_NOME: self.instituto_nome})
-
-        if self.instituto_abrev is not None:
-            condicoes.append({MetaKey.INSTITUTO_ABREV: self.instituto_abrev})
-
-        if self.instituto_campus is not None:
-            condicoes.append({MetaKey.INSTITUTO_CAMPUS: self.instituto_campus.value})
+        self._adicionar_filtro_lista(condicoes, MetaKey.INSTITUTO_NOME, self.instituto_nomes)
+        self._adicionar_filtro_lista(condicoes, MetaKey.INSTITUTO_ABREV, self.instituto_abrevs)
+        self._adicionar_filtro_lista(condicoes, MetaKey.INSTITUTO_CAMPUS, self.instituto_campi)
 
         if self.creditos_aula_min is not None:
             condicoes.append({MetaKey.CREDITOS_AULA: {"$gte": self.creditos_aula_min}})
@@ -236,7 +292,7 @@ class FiltroDisciplinas(BaseModel):
 @tool
 def buscar_disciplinas(
     query: Annotated[
-        str | None,
+        str,
         Field(
             description=(
                 "Palavras-chave e expressões curtas que representem os temas, "
@@ -245,11 +301,11 @@ def buscar_disciplinas(
                 "separados por vírgulas (ex.: 'evolução darwiniana, seleção "
                 "natural, origem das espécies'). Não inclua a solicitação "
                 "completa em linguagem natural, siglas de disciplinas ou "
-                "critérios determinísticos. Utilize None quando a busca "
-                "depender exclusivamente de filtros."
+                "critérios determinísticos. Se a busca depender exclusivamente "
+                "de filtros, deixe este campo vazio."
             )
         ),
-    ] = None,
+    ] = "",
     filtros: Annotated[
         FiltroDisciplinas | None,
         Field(
@@ -257,7 +313,9 @@ def buscar_disciplinas(
                 "Restrições determinísticas para limitar os resultados. "
                 "Informe somente os critérios estabelecidos pelo usuário "
                 "ou inferidos com segurança do contexto. Todas as condições "
-                "preenchidas são aplicadas simultaneamente."
+                "preenchidas devem ser satisfeitas simultaneamente, exceto "
+                "quando houver várias abreviações de institutos: nesse caso, "
+                "basta a disciplina pertencer a um dos institutos informados."
             )
         ),
     ] = None,
@@ -268,9 +326,13 @@ def buscar_disciplinas(
             le=BUSCA_MAX_RESULTADOS,
             description=(
                 f"Número máximo de disciplinas candidatas a retornar pela busca "
-                f"(entre 1 e {BUSCA_MAX_RESULTADOS}). Não precisa corresponder à "
-                "quantidade de disciplinas que será apresentada ao usuário. "
-                "Se não houver uma necessidade específica, utilize o valor padrão."
+                f"(entre 1 e {BUSCA_MAX_RESULTADOS}). Utilize o valor padrão "
+                f"({BUSCA_DEFAULT_RESULTADOS}) na maioria das buscas. Aumente "
+                "esse valor somente quando a busca for particularmente ampla "
+                "ou quando houver uma justificativa para explorar mais candidatos. "
+                "Não ajuste esse parâmetro simplesmente para corresponder à "
+                "quantidade de disciplinas que o usuário deseja receber: a "
+                "quantidade recuperada pode ser maior que a quantidade apresentada."
             ),
         ),
     ] = BUSCA_DEFAULT_RESULTADOS,
@@ -283,31 +345,33 @@ def buscar_disciplinas(
 
     Quando houver um assunto de interesse, formule a consulta utilizando
     palavras-chave e expressões curtas que representem os temas relevantes.
-    Combine diferentes termos quando necessário. A busca semântica compara
-    essas expressões com os nomes e o conteúdo das disciplinas, incluindo
-    ementas, objetivos e conteúdo programático. Não utilize siglas isoladas
-    como consulta semântica.
+    Combine diferentes termos quando necessário, preferencialmente separados
+    por vírgulas. A busca semântica compara essas expressões com os nomes e
+    o conteúdo das disciplinas, incluindo ementas, objetivos e conteúdo
+    programático. Não utilize siglas isoladas como consulta semântica.
 
     Quando o usuário estabelecer critérios determinísticos, como instituto,
     campus, créditos ou carga horária, aplique-os por meio dos filtros.
-    Todas as condições informadas devem ser satisfeitas simultaneamente.
+    Todas as condições informadas devem ser satisfeitas simultaneamente,
+    exceto quando houver alternativas para um mesmo critério. Por exemplo,
+    se o usuário aceitar disciplinas do IME ou da Poli, basta que a disciplina
+    pertença a um desses institutos.
 
     Se o usuário solicitar disciplinas apenas por critérios determinísticos,
     sem especificar um assunto de interesse, realize a busca utilizando
     exclusivamente os filtros, sem necessidade de consulta semântica.
-    Nesse caso, informe ao parâmetro de consulta o valor None e forneça
-    pelo menos um filtro.
+    Nesse caso, deixe o campo query vazio e forneça pelo menos um filtro.
 
     Utilize somente critérios explicitamente estabelecidos pelo usuário ou
     que possam ser inferidos com segurança do contexto da conversa. Ao
     refinar uma busca anterior, preserve os interesses e filtros que
     continuem pertinentes.
 
-    A quantidade de resultados retornados pela ferramenta representa o conjunto
-    de disciplinas candidatas à seleção, não necessariamente a quantidade que
-    deve ser apresentada ao usuário. Analise os resultados e selecione aqueles
-    mais relevantes para a solicitação, respeitando a quantidade solicitada
-    pelo usuário quando houver uma.
+    A quantidade de resultados retornados pela ferramenta representa o
+    conjunto de disciplinas candidatas à seleção, não necessariamente a
+    quantidade que deve ser apresentada ao usuário. Analise os resultados
+    e selecione aqueles mais relevantes para a solicitação, respeitando
+    a quantidade solicitada pelo usuário quando houver uma.
 
     Quando houver consulta semântica, os resultados são ordenados do mais
     para o menos relevante em relação à consulta. Em buscas exclusivamente
@@ -330,6 +394,8 @@ def buscar_disciplinas(
         fornecidos, retorna um objeto JSON com a chave "erro".
     """
 
+    if query.strip().lower() in {"", "null", "none"}:
+        query = None
     if query is not None:
         query = query.strip() or None
 
@@ -390,12 +456,15 @@ def obter_agent() -> CompiledStateGraph:
         api_key=settings.openrouter_api_key.get_secret_value(),
     )
 
-    return create_agent(
+    agent = create_agent(
         model=model,
         tools=[consultar_disciplinas, buscar_disciplinas],
         system_prompt=settings.system_prompt_path.read_text(encoding="utf-8"),
         checkpointer=InMemorySaver(),
     )
+
+    logger.info("Agente criado com modelo %s", model)
+    return agent
 
 
 def obter_resposta(mensagem: str, conversa_id: str) -> str:
@@ -405,9 +474,14 @@ def obter_resposta(mensagem: str, conversa_id: str) -> str:
     agent = obter_agent()
     config: RunnableConfig = {"configurable": {"thread_id": conversa_id}}
 
-    resultado = agent.invoke(
-        {"messages": [{"role": "user", "content": mensagem}]},
-        config=config,
-    )
+    logger.info("obter_resposta: iniciando (conversa_id=%s)", conversa_id)
+
+    try:
+        resultado = agent.invoke(
+            {"messages": [{"role": "user", "content": mensagem}]},
+            config=config,
+        )
+    except Exception:
+        logger.exception("obter_resposta: erro durante a execução (conversa_id=%s)", conversa_id)
 
     return resultado["messages"][-1].content
