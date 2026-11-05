@@ -487,7 +487,7 @@ def obter_agent() -> CompiledStateGraph:
         checkpointer=InMemorySaver(),
     )
 
-    logger.info("Agente criado com modelo %s", model)
+    logger.info("Agente criado com modelo '%s'", settings.agent_model)
     return agent
 
 
